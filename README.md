@@ -1,0 +1,1 @@
+# Trusted, self-bootstrapping Consul
