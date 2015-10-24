@@ -24,12 +24,12 @@ export BOOTSTRAP_HOST=${BOOTSTRAP_HOST:-'http://consulbootstrap:8500'}
 
 
 #
-# the wrapper for the consul executable
+# Write the Consul command and args to a file for use by the start script
 #
 consul()
 {
     set -eo pipefail
-    exec /bin/consul agent -config-dir=/config $1
+    echo "/bin/consul agent -config-dir=/config $1" > /bin/consul-start
 }
 
 
@@ -166,7 +166,7 @@ while [ $RESPONSIVE != 1 ]; do
     then
         echo
         echo '#'
-        echo '# Already running as a server...'
+        echo '# Consul is running...'
         echo '#'
         echo "# Dashboard: http://$IP_PUBLIC:8500/ui"
         echo '#'
