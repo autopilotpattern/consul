@@ -1,0 +1,188 @@
+#!/bin/bash
+
+#
+# This is the startup script is run once on startup to find and join a Consul raft
+# it will continue polling for a raft until one is found
+#
+# The script can also be run with arguments to bootstrap the raft
+#
+
+# This container's IP(s)
+export IP_PRIVATE=$(ip addr show eth0 | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
+IP_HAVEPUBLIC=$(ip link show | grep eth1)
+if [[ $IP_HAVEPUBLIC ]]
+then
+    export IP_PUBLIC=$(ip addr show eth1 | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
+else
+    export IP_PUBLIC=$IP_PRIVATE
+fi
+
+# Discovery vars
+export CONSUL_SERVICE_NAME=${CONSUL_SERVICE_NAME:-consul}
+export BOOTSTRAP_HOST=${BOOTSTRAP_HOST:-'http://consulbootstrap:8500'}
+
+
+
+#
+# the wrapper for the consul executable
+#
+consul()
+{
+    set -eo pipefail
+    exec /bin/consul agent -config-dir=/config $1
+}
+
+
+
+echo
+echo '#'
+echo '# Testing to see if Consul is running yet'
+echo '#'
+
+RESPONSIVE=0
+while [ $RESPONSIVE != 1 ]; do
+    echo -n '.'
+
+    consul info &> /dev/null
+    if [ $? -eq 0 ]
+    then
+        let RESPONSIVE=1
+    else
+        sleep .7
+    fi
+done
+sleep 1
+
+# it's responsive, is it already configured?
+consul info | grep server &> /dev/null
+if [ $? -eq 0 ]; then
+    echo
+    echo '#'
+    echo '# Already running as a server...'
+    echo '#'
+    echo "# Dashboard: http://$IP_PUBLIC:8500/ui"
+
+    exit
+fi
+
+
+
+echo
+echo '#'
+echo '# Checking bootstrap availability'
+echo '#'
+
+curl -fs --retry 7 --retry-delay 3 $BOOTSTRAP_HOST/v1/agent/services &> /dev/null
+if [ $? -ne 0 ]
+then
+    echo '# Ack!'
+    echo '# Bootstrap instance of Consul is required, but unreachable'
+    echo '#'
+    curl $BOOTSTRAP_HOST/v1/agent/services
+    exit
+else
+    echo '# Bootstrap instance found and responsive'
+    echo '#'
+fi
+
+
+
+#
+# Register this unconfigured Consul raft member wannabe in the bootstrap instance for discovery by other raft wannabees
+#
+curl -f --retry 7 --retry-delay 3 $BOOTSTRAP_HOST/v1/agent/service/register -d "$(printf '{"ID":"%s-unconfigured-%s","Name":"%s-unconfigured","Address":"%s","checks": [{"ttl": "59s"}]}' $CONSUL_SERVICE_NAME $HOSTNAME $CONSUL_SERVICE_NAME $IP_PRIVATE)"
+
+# pass the healthcheck
+curl -f --retry 7 --retry-delay 3 "$BOOTSTRAP_HOST/v1/agent/check/pass/service:$CONSUL_SERVICE_NAME-unconfigured-$HOSTNAME?note=initial+startup"
+
+
+
+#
+# Either bootstrap a new raft or poll for an existing raft
+#
+if [ "$1" = 'bootstrap' ]
+then
+    echo '#'
+    echo '# Bootstrapping raft'
+    echo '#'
+
+    #
+    # Deregister this raft wannabe from the list of unconfigured raft wannabees in the bootstrap node
+    #
+    curl -f --retry 7 --retry-delay 3 $BOOTSTRAP_HOST/v1/agent/service/deregister/$CONSUL_SERVICE_NAME-unconfigured-$HOSTNAME
+
+    echo
+    echo '#'
+    echo '# Bootstrapping the Consul raft...'
+    echo '#'
+    consul -server -bootstrap -ui-dir /ui
+
+else
+    echo '#'
+    echo '# Looking for an existing raft'
+    echo '#'
+
+    RAFTFOUND=0
+    while [ $RAFTFOUND != 1 ]; do
+        echo -n '.'
+
+        RAFTIP=$(curl -L -s -f $BOOTSTRAP_HOST/v1/health/service/$CONSUL_SERVICE_NAME?passing | json -aH Service.Address | head -1)
+        if [ -n "$RAFTIP" ]
+        then
+            let RAFTFOUND=1
+        else
+            # Update the healthcheck for this unconfigured Consul raft wannabe in the bootstrap instance for discovery
+            curl -f --retry 7 --retry-delay 3 "$BOOTSTRAP_HOST/v1/agent/check/pass/service:$CONSUL_SERVICE_NAME-unconfigured-$HOSTNAME?note=polling+for+raft"
+
+            # sleep for a bit
+            sleep 7
+        fi
+    done
+
+    #
+    # Deregister this raft wannabe from the list of unconfigured raft wannabees in Consul
+    #
+    curl -f --retry 7 --retry-delay 3 $BOOTSTRAP_HOST/v1/agent/service/deregister/$CONSUL_SERVICE_NAME-unconfigured-$HOSTNAME
+
+    echo
+    echo '#'
+    echo '# Joining raft...'
+    echo '#'
+    consul -server -join $RAFTIP -ui-dir /ui
+fi
+
+
+
+echo
+echo '#'
+echo '# Confirming raft health...'
+echo '#'
+RESPONSIVE=0
+while [ $RESPONSIVE != 1 ]; do
+    echo -n '.'
+
+    consul info &> /dev/null
+    if [ $? -eq 0 ]
+    then
+        echo
+        echo '#'
+        echo '# Already running as a server...'
+        echo '#'
+        echo "# Dashboard: http://$IP_PUBLIC:8500/ui"
+        echo '#'
+        consul info
+
+        let RESPONSIVE=1
+    else
+        sleep .7
+    fi
+done
+sleep 1
+
+
+
+echo
+echo '#'
+echo '# Register the Consul raft member'
+echo '#'
+curl -f --retry 7 --retry-delay 3 $BOOTSTRAP_HOST/v1/agent/service/register -d "$(printf '{"ID": "%s-%s","Name": "%s","tags": ["couchbase","demo"],"Address": "%s","checks": [{"http": "http://%s:8091/index.html","interval": "13s","timeout": "1s"}]}' $CONSUL_SERVICE_NAME $HOSTNAME $CONSUL_SERVICE_NAME $IP_PRIVATE $IP_PRIVATE)"
