@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Couchbase Server start script. 
+
+while [ 1 ]
+do
+    consul info &> /dev/null
+    if [ $? -eq 0 ]
+    then
+
+        # this executables get written by the triton-bootstrap script
+        exec bash /bin/consul-register-cmd
+        exec bash /bin/consul-health-cmd
+    else
+        sleep $(( 10 + $RANDOM % 10 )) #sleep for 10-20 seconds
+    fi
+done

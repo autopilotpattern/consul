@@ -18,7 +18,7 @@ else
 fi
 
 # Discovery vars
-export CONSUL_SERVICE_NAME=${CONSUL_SERVICE_NAME:-consul}
+export CONSUL_SERVICE_NAME=${CONSUL_SERVICE_NAME:-haconsul}
 export BOOTSTRAP_HOST=${BOOTSTRAP_HOST:-'http://consulbootstrap:8500'}
 
 
@@ -26,34 +26,54 @@ export BOOTSTRAP_HOST=${BOOTSTRAP_HOST:-'http://consulbootstrap:8500'}
 #
 # Write the Consul command and args to a file for use by the start script
 #
-consul()
+consul_cmd()
 {
-    set -eo pipefail
-    echo "/bin/consul agent -config-dir=/config $1" > /bin/consul-start
+    echo "/bin/consul agent -config-dir=/config $1" > /bin/consul-start-cmd
+
+    echo '#'
+    echo "# This node's Consul start command:"
+    echo '#'
+
+    cat /bin/consul-start-cmd
+    echo
+}
+
+
+
+#
+# Write the Consul registration and health check commands and args to a file for use by the start script
+#
+consul_register_cmd()
+{
+    echo curl -f --retry 7 --retry-delay 3 $BOOTSTRAP_HOST/v1/agent/service/register -d "$(printf '{"ID": "%s-%s","Name": "%s","tags": ["consul"],"Address": "%s","checks": [{"ttl": "59s"}]}' $CONSUL_SERVICE_NAME $HOSTNAME $CONSUL_SERVICE_NAME $IP_PRIVATE)" > /bin/consul-register-cmd
+
+    echo '#'
+    echo "# This node's Consul registration command:"
+    echo '#'
+
+    cat /bin/consul-register-cmd
+    echo
+}
+
+consul_health_cmd()
+{
+    echo curl -f --retry 7 --retry-delay 3 "$BOOTSTRAP_HOST/v1/agent/check/pass/service:${CONSUL_SERVICE_NAME}-${HOSTNAME}?note=running+healthy" > /bin/consul-health-cmd
+
+    echo '#'
+    echo "# This node's Consul health check update command:"
+    echo '#'
+
+    cat /bin/consul-health-cmd
+    echo
 }
 
 
 
 echo
 echo '#'
-echo '# Testing to see if Consul is running yet'
+echo '# Testing to see if Consul is already running'
 echo '#'
 
-RESPONSIVE=0
-while [ $RESPONSIVE != 1 ]; do
-    echo -n '.'
-
-    consul info &> /dev/null
-    if [ $? -eq 0 ]
-    then
-        let RESPONSIVE=1
-    else
-        sleep .7
-    fi
-done
-sleep 1
-
-# it's responsive, is it already configured?
 consul info | grep server &> /dev/null
 if [ $? -eq 0 ]; then
     echo
@@ -115,7 +135,7 @@ then
     echo '#'
     echo '# Bootstrapping the Consul raft...'
     echo '#'
-    consul -server -bootstrap -ui-dir /ui
+    consul_cmd "-server -bootstrap -ui-dir /ui"
 
 else
     echo '#'
@@ -126,8 +146,8 @@ else
     while [ $RAFTFOUND != 1 ]; do
         echo -n '.'
 
-        RAFTIP=$(curl -L -s -f $BOOTSTRAP_HOST/v1/health/service/$CONSUL_SERVICE_NAME?passing | json -aH Service.Address | head -1)
-        if [ -n "$RAFTIP" ]
+        RAFTIP=$(curl -L -s -f $BOOTSTRAP_HOST/v1/health/service/$CONSUL_SERVICE_NAME?passing | jq --raw-output '.[0] | .Service.Address')
+        if [ "null" != "$RAFTIP" ]
         then
             let RAFTFOUND=1
         else
@@ -148,7 +168,7 @@ else
     echo '#'
     echo '# Joining raft...'
     echo '#'
-    consul -server -join $RAFTIP -ui-dir /ui
+    consul_cmd "-server -join $RAFTIP -ui-dir /ui"
 fi
 
 
@@ -161,7 +181,7 @@ RESPONSIVE=0
 while [ $RESPONSIVE != 1 ]; do
     echo -n '.'
 
-    consul info &> /dev/null
+    consul info | grep server &> /dev/null
     if [ $? -eq 0 ]
     then
         echo
@@ -185,4 +205,15 @@ echo
 echo '#'
 echo '# Register the Consul raft member'
 echo '#'
-curl -f --retry 7 --retry-delay 3 $BOOTSTRAP_HOST/v1/agent/service/register -d "$(printf '{"ID": "%s-%s","Name": "%s","tags": ["couchbase","demo"],"Address": "%s","checks": [{"http": "http://%s:8091/index.html","interval": "13s","timeout": "1s"}]}' $CONSUL_SERVICE_NAME $HOSTNAME $CONSUL_SERVICE_NAME $IP_PRIVATE $IP_PRIVATE)"
+curl -f --retry 7 --retry-delay 3 $BOOTSTRAP_HOST/v1/agent/service/register -d "$(printf '{"ID": "%s-%s","Name": "%s","tags": ["consul"],"Address": "%s","checks": [{"ttl": "59s"}]}' $CONSUL_SERVICE_NAME $HOSTNAME $CONSUL_SERVICE_NAME $IP_PRIVATE)"
+
+#
+# Write out the registration and health commands for use elsewhere
+#
+consul_register_cmd
+consul_health_cmd
+
+echo
+echo '#'
+echo '# Bootstrapping complete'
+echo '#'

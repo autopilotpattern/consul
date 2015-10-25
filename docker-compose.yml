@@ -3,7 +3,7 @@
 #
 consulbootstrap:
     image: misterbisson/triton-consul:latest
-    command: -server -bootstrap -ui-dir /ui
+    command: bootstrap
     restart: always
     mem_limit: 128m
     ports:
@@ -22,7 +22,7 @@ consulbootstrap:
 #
 consul:
     image: misterbisson/triton-consul:latest
-    command: -server -join consulbootstrap -ui-dir /ui
+    command: raft
     restart: always
     mem_limit: 128m
     links:
