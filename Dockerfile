@@ -2,6 +2,7 @@ FROM alpine:3.2
 MAINTAINER 	Casey Bisson <casey.bisson@gmail.com>
 
 # Alpine packages
+# Note: glibc is required because the Consul binary we're using is built against it
 RUN apk --update \
     add \
         jq \
