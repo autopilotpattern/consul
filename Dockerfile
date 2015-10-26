@@ -40,6 +40,7 @@ EXPOSE 8300 8301 8301/udp 8302 8302/udp 8400 8500 53 53/udp
 # Not necessary on Triton, but...
 VOLUME ["/data"]
 
+ENV GOMAXPROCS 2
 ENV SHELL /bin/bash
 
 ENTRYPOINT ["/bin/triton-start"]

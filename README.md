@@ -39,7 +39,7 @@ Each raft instance will constantly re-register with the bootstrap instance. If t
 
 Some details about how Docker containers work on Triton have specific bearing on the durability and availability of this service:
 
-1. Docker containers are first-order objects on Triton. They run on bare metal, and their overall availability is similar or better than what you expect of a virtual machine in other infrastructure.
+1. Docker containers are first-order objects on Triton. They run on bare metal, and their overall availability is similar or better than what you expect of a virtual machine in other environments.
 1. Docker containers on Triton preserve their IP and any data on disk when they reboot.
 1. Linked containers in Docker Compose on Triton are actually distributed across multiple unique physical nodes for maximum availability in the case of  node failures.
 
