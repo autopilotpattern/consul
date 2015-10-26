@@ -3,7 +3,7 @@
 # Consul heartbeat script
 # re-registers this node and sets it healthy in the non-HA Consul bootstrap service
 
-while [ 1 ]
+while true
 do
     consul info &> /dev/null
     if [ $? -eq 0 ]
