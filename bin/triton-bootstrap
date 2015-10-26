@@ -45,7 +45,7 @@ consul_cmd()
 #
 consul_register_cmd()
 {
-    echo curl -f --retry 7 --retry-delay 3 $BOOTSTRAP_HOST/v1/agent/service/register -d "$(printf '{"ID": "%s-%s","Name": "%s","tags": ["consul"],"Address": "%s","checks": [{"ttl": "59s"}]}' $CONSUL_SERVICE_NAME $HOSTNAME $CONSUL_SERVICE_NAME $IP_PRIVATE)" > /bin/consul-register-cmd
+    echo curl -f --retry 7 --retry-delay 3 $BOOTSTRAP_HOST/v1/agent/service/register -d "'$(printf '{"ID": "%s-%s","Name": "%s","tags": ["consul"],"Address": "%s","checks": [{"ttl": "59s"}]}' $CONSUL_SERVICE_NAME $HOSTNAME $CONSUL_SERVICE_NAME $IP_PRIVATE)'" > /bin/consul-register-cmd
 
     echo '#'
     echo "# This node's Consul registration command:"
@@ -57,7 +57,7 @@ consul_register_cmd()
 
 consul_health_cmd()
 {
-    echo curl -f --retry 7 --retry-delay 3 "$BOOTSTRAP_HOST/v1/agent/check/pass/service:${CONSUL_SERVICE_NAME}-${HOSTNAME}?note=running+healthy" > /bin/consul-health-cmd
+    echo curl -f --retry 7 --retry-delay 3 "'$BOOTSTRAP_HOST/v1/agent/check/pass/service:${CONSUL_SERVICE_NAME}-${HOSTNAME}?note=running+healthy'" > /bin/consul-health-cmd
 
     echo '#'
     echo "# This node's Consul health check update command:"
@@ -143,12 +143,18 @@ else
     echo '#'
 
     RAFTFOUND=0
+    RAFTIPREGEX='^[0-9]'
     while [ $RAFTFOUND != 1 ]; do
         echo -n '.'
 
         RAFTIP=$(curl -L -s -f $BOOTSTRAP_HOST/v1/health/service/$CONSUL_SERVICE_NAME?passing | jq --raw-output '.[0] | .Service.Address')
-        if [ "null" != "$RAFTIP" ]
+
+        if [[ $RAFTIP =~ $RAFTIPREGEX ]]
         then
+            echo '#'
+            echo "# Raft found at $RAFTIP"
+            echo '#'
+
             let RAFTFOUND=1
         else
             # Update the healthcheck for this unconfigured Consul raft wannabe in the bootstrap instance for discovery

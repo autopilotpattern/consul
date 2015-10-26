@@ -1,6 +1,7 @@
-#!/bin/sh
+#!/bin/bash
 
-# Couchbase Server start script. 
+# Consul heartbeat script
+# re-registers this node and sets it healthy in the non-HA Consul bootstrap service
 
 while [ 1 ]
 do
@@ -8,10 +9,10 @@ do
     if [ $? -eq 0 ]
     then
 
-        # this executables get written by the triton-bootstrap script
-        exec bash /bin/consul-register-cmd
-        exec bash /bin/consul-health-cmd
-    else
-        sleep $(( 10 + $RANDOM % 10 )) #sleep for 10-20 seconds
+        # these executables get written by the triton-bootstrap script
+        bash /bin/consul-register-cmd
+        bash /bin/consul-health-cmd
     fi
+
+    sleep $(( 10 + $RANDOM % 10 )) #sleep for 10-20 seconds
 done

@@ -23,8 +23,11 @@ case "$1" in
         # sleep another moment
         sleep .7
 
+        # start the heartbeat script in the background
+        /bin/consul-health &
+
         # Start Consul
-        exec bash $CONSULSCRIPT
+        bash $CONSULSCRIPT
 
         # if Consul stops or fails, remove the config file before exiting the container
         rm $CONSULSCRIPT
@@ -39,7 +42,7 @@ case "$1" in
     #
     bootstrap)
         set -eo pipefail
-        exec /bin/consul agent -config-dir=/config -server -bootstrap -ui-dir /ui
+        /bin/consul agent -config-dir=/config -server -bootstrap -ui-dir /ui
 
         # We only get here if Consul stops or fails...
         echo '#'
