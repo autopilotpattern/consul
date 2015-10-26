@@ -1,1 +1,48 @@
-# Trusted, self-bootstrapping Consul
+# Triton trusted Consul
+
+[Consul](http://www.consul.io/) in Docker, designed for availability and durability.
+
+## Prep your environment
+
+1. [Get a Joyent account](https://my.joyent.com/landing/signup/) and [add your SSH key](https://docs.joyent.com/public-cloud/getting-started).
+1. Install and the [Docker Engine](https://docs.docker.com/installation/mac/) (including `docker` and `docker-compose`) on your laptop or other environment, along with the [Joyent CloudAPI CLI tools](https://apidocs.joyent.com/cloudapi/#getting-started) (including the `smartdc` and `json` tools).
+1. [Configure your Docker CLI and Compose for use with Joyent](https://docs.joyent.com/public-cloud/api-access/docker):
+
+```
+curl -O https://raw.githubusercontent.com/joyent/sdc-docker/master/tools/sdc-docker-setup.sh && chmod +x sdc-docker-setup.sh
+ ./sdc-docker-setup.sh -k us-east-1.api.joyent.com <ACCOUNT> ~/.ssh/<PRIVATE_KEY_FILE>
+```
+
+## Start a trusted Consul raft
+
+1. [Clone](https://github.com/misterbisson/triton-consul) or [download](https://github.com/misterbisson/triton-consul/archive/master.zip) this repo
+1. `cd` into the cloned or downloaded directory
+1. Execute `bash start.sh` to start everything up
+1. The Consul dashboard should automatically open in your browser, or follow the links output by the `start.sh` script
+
+## Use this in your own composition
+
+Detailed example to come....
+
+## How it works
+
+This demo actually sets up two independent Consul services:
+
+1. A single-node instance used only for bootstrapping the raft
+1. A three-node instance that other applications can point to
+
+A running raft has no dependency on the bootstrap instance. New raft instances do need to connect to the bootstrap instance to find the raft, creating a failure gap that is discussed below. If a raft instance fails, the data is preserved among the other instances and the overall availability of the service is preserved because any single instance can authoritatively answer for all instances. Applications that depend on the Consul service should re-try failed requests until they get a response.
+
+Each raft instance will constantly re-register with the bootstrap instance. If the boostrap instance or its data is lost, a new bootstrap instance can be started and all existing raft instances will re-register with it. In a scenario where the bootstrap instance is unavailable, it will be impossible to start raft instances until the bootstrap instance has been restarted and at least one existing raft member has reregistered.
+
+## Triston-specific availability advantages
+
+Some details about how Docker containers work on Triton have specific bearing on the durability and availability of this service:
+
+1. Docker containers are first-order objects on Triton. They run on bare metal, and their overall availability is similar or better than what you expect of a virtual machine in other environments.
+1. Docker containers on Triton preserve their IP and any data on disk when they reboot.
+1. Linked containers in Docker Compose on Triton are actually distributed across multiple unique physical nodes for maximum availability in the case of  node failures.
+
+# Credit where it's due
+
+This project builds on the fine examples set by [Jeff Lindsay](https://github.com/progrium)'s ([Glider Labs](https://github.com/gliderlabs)) [Consul in Docker](https://github.com/gliderlabs/docker-consul/tree/legacy) work. It also, obviously, wouldn't be possible without the outstanding work of the [Hashicorp team](https://hashicorp.com) that made [consul.io](https://www.consul.io).

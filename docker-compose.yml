@@ -1,0 +1,38 @@
+#
+# Start a single consul host for bootstrapping the full consul cluster
+#
+consulbootstrap:
+    image: misterbisson/triton-consul:latest
+    command: bootstrap
+    restart: always
+    mem_limit: 128m
+    ports:
+        - 53
+        - 8300
+        - 8301
+        - 8302
+        - 8400
+        - 8500
+    dns:
+       - 127.0.0.1
+
+#
+# Start the following service with three nodes for reliability
+# These instances depend on the bootstrap instance 
+#
+consul:
+    image: misterbisson/triton-consul:latest
+    command: raft
+    restart: always
+    mem_limit: 128m
+    links:
+        - consulbootstrap
+    ports:
+        - 53
+        - 8300
+        - 8301
+        - 8302
+        - 8400
+        - 8500
+    dns:
+       - 127.0.0.1
