@@ -1,0 +1,5 @@
+consul:
+    extends:
+      file: docker-compose.yml
+      service: consul
+    build: .

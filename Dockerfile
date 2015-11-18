@@ -5,7 +5,6 @@ MAINTAINER 	Casey Bisson <casey.bisson@gmail.com>
 # Note: glibc is required because the Consul binary we're using is built against it
 RUN apk --update \
     add \
-        jq \
         curl \
         bash \
         ca-certificates && \
@@ -29,10 +28,20 @@ RUN mkdir /ui && \
     mv dist/* . && \
     rm -rf dist
 
+# get Containerbuddy release
+RUN export CB=containerbuddy-0.0.1-alpha &&\
+    mkdir -p /opt/containerbuddy && \
+    curl -Lo /tmp/${CB}.tar.gz \
+    https://github.com/joyent/containerbuddy/releases/download/0.0.1-alpha/${CB}.tar.gz && \
+	tar xzf /tmp/${CB}.tar.gz -C /tmp && \
+    mv /tmp/build/containerbuddy /opt/containerbuddy/
+COPY containerbuddy.json /etc/
+
 # Consul config
 COPY ./config /config/
 ONBUILD ADD ./config /config/
 
+# copy bootstrap scripts
 COPY ./bin/* /bin/
 
 EXPOSE 8300 8301 8301/udp 8302 8302/udp 8400 8500 53 53/udp
@@ -43,6 +52,3 @@ VOLUME ["/data"]
 
 ENV GOMAXPROCS 2
 ENV SHELL /bin/bash
-
-ENTRYPOINT ["/bin/triton-start"]
-CMD []
