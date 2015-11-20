@@ -1,3 +1,5 @@
+PHONY: *
+
 build:
 	npm install .
 
