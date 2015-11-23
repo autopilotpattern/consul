@@ -6,9 +6,9 @@ var async = require('async');
 // dockerode will automatically pick up your DOCKER_HOST, DOCKER_CERT_PATH
 // but we need to set the version explicitly to support Triton
 // ref https://github.com/apocas/dockerode/issues/154
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
-var docker = new Docker()
-docker.version = 'v1.20'
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+var docker = new Docker();
+docker.version = 'v1.20';
 
 listConsul(function (err, consulNodes) {
     if (err) {
@@ -43,15 +43,15 @@ function run3NodeTests(consulNodes) {
         console.log('Raft is healthy:', results);
     });
 
-    // async.series([
-    //     function (cb) { test3_1(consulNodes, cb); },
-    //     function (cb) { test3_2(consulNodes, cb); },
-    //     function (cb) { test3_3(consulNodes, cb); }
-    // ],
-    // function (err, results) {
-    //     console.log(err);
-    //     console.log(results);
-    // });
+    async.series([
+        function (cb) { test3_1(consulNodes, cb); },
+        function (cb) { test3_2(consulNodes, cb); },
+        function (cb) { test3_3(consulNodes, cb); }
+    ],
+    function (err, results) {
+        console.log(err);
+        console.log(results);
+    });
 }
 
 // Runs a series of tests on raft behavior for a 5-node Consul cluster
@@ -81,8 +81,8 @@ function test3_1(consulNodes, callback) {
     var consul3 = consulNodes[2];
     async.series([
         function (cb) { stop(consul3, cb); },
-        function (cb) { waitForRaft(consulNodes.slice(0, 1), cb); },
-        function (cb) { testWrites(consulNodes.slice(0, 1),
+        function (cb) { waitForRaft([consulNodes[0], consulNodes[1]], cb); },
+        function (cb) { testWrites([consulNodes[0], consulNodes[1]],
                                    'consistent', true, cb); },
         function (cb) { start(consul3, cb); },
         function (cb) { waitForRaft(consulNodes, cb); }
@@ -97,7 +97,7 @@ function test3_2(consulNodes, callback) {
     var consul1 = consulNodes[0];
     async.series([
         function (cb) { stop(consul1, cb); },
-        function (cb) { waitForRaft(consulNodes.slice(1), cb); },
+        function (cb) { waitForRaft([consulNodes[1], consulNodes[2]], cb); },
         function (cb) { start(consul1, cb); },
         function (cb) { waitForRaft(consulNodes, cb); }
     ],
@@ -201,7 +201,7 @@ function waitForRaft(containers, callback) {
 
     var isMatch = false;
     var count = 0;
-    var maxCount = 1; // DEBUG 3;
+    var maxCount = 3;
 
     async.doUntil(
         function (cb) {
@@ -211,7 +211,7 @@ function waitForRaft(containers, callback) {
                     return;
                 }
                 peers.sort();
-                console.log('Got peers', peers)
+                console.log('Got peers', peers);
                 isMatch = (expected.length == peers.length) &&
                     expected.every(function (e, i) {
                         return e == peers[i];
@@ -225,9 +225,12 @@ function waitForRaft(containers, callback) {
         },
         function (err) {
             if (err) {
-                callback(err, false);
+                return callback(err, false);
             } else {
-                callback(null, isMatch);
+                if (!isMatch) {
+                    return callback('Error: not a match', null);
+                }
+                return callback(null, isMatch);
             }
         });
 }
@@ -235,12 +238,12 @@ function waitForRaft(containers, callback) {
 // @param    {[containers]} array of container objects from our Consul
 //                          nodes array that we want to test writes against
 // @callback {callback} function(err, result)
-function testWrites(containers, callback) {
+function testWrites(containers, consistency, expectPass, callback) {
     // TODO: implementation
-    console.log(containers);
-    console.log(callback);
+    console.log('testWrites:', containers.length, consistency,
+                'expectPass:', expectPass);
+    callback(null, 'testWrites');
 }
-
 
 function createNetsplit(group1, group2, callback) {
     // TODO: implementation
@@ -270,14 +273,13 @@ function listConsul(callback) {
                 return;
             }
             async.each(containers, function (container, cb) {
-                cmd = ['ip','addr','show','eth0']
-                runExec(container, cmd, function(e, ip) {
+                var cmd = ['ip', 'addr', 'show', 'eth0'];
+                runExec(container, cmd, function (e, ip) {
                     if (e) {
                         cb(e);
                         return;
                     }
-                    ip = ip.match(/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/g);
-                    container['Ip'] = ip;
+                    container['Ip'] = matchIp(ip);
                     cb(null);
                 });
             }, function (inspectErr) {
@@ -285,7 +287,7 @@ function listConsul(callback) {
                     callback(inspectErr, null);
                 }
                 containers.forEach(function (container) {
-                    container['Name'] = container.Names[0].replace('/', '')
+                    container['Name'] = container.Names[0].replace('/', '');
                     consul.push(container);
                 });
                 consul.sort(byName);
@@ -329,6 +331,11 @@ function getPeers(container, fn) {
             });
 }
 
+// returns a string
+function matchIp(input) {
+    return input.match(/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/);
+}
+
 // returns an array of strings in the form ["{ip}:{port}"]
 function matchIpPort(input) {
     return input.match(/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}:8300/g);
@@ -345,25 +352,24 @@ function runExec(container, command, callback) {
         AttachStdout: true,
         AttachStderr: true,
         Tty: true,
-        Cmd: command,
+        Cmd: command
     };
 
     docker.getContainer(container.Id).exec(options, function (execErr, exec) {
         if (execErr) {
-            return callback(execErr, null);
+            callback(execErr, null);
         }
         exec.start({Tty: true, Detach: true}, function (err, stream) {
             if (err) {
-                return callback(err, null);
+                callback(err, null);
             }
-            const chunks = [];
             var body = '';
             stream.setEncoding('utf8');
             stream.once('error', function (error) {
                 callback(error, null);
             });
             stream.once('end', function () {
-                callback(null, body); //chunks.join(''));
+                callback(null, body);
             });
             stream.on('data', function (chunk) {
                 body += chunk;
