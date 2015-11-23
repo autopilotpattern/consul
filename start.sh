@@ -18,7 +18,7 @@ shift $(expr $OPTIND - 1 )
 # give the docker remote api more time before timeout
 export DOCKER_CLIENT_TIMEOUT=300
 
-echo 'Starting a Triton trusted Compose service'
+echo 'Starting a Triton trusted Consul service'
 
 echo
 echo 'Pulling the most recent images'
@@ -26,17 +26,21 @@ docker-compose pull
 
 echo
 echo 'Starting containers'
+export BOOTSTRAP_HOST=
 docker-compose up -d --no-recreate
 
 # Wait for the bootstrap instance
 echo
 echo -n 'Waiting for the bootstrap instance.'
-export BOOTSTRAP_HOST="$(docker inspect -f '{{ .NetworkSettings.IPAddress }}' "${COMPOSE_PROJECT_NAME}_consul_1")"
+
+export BOOTSTRAP_HOST="$(docker exec -it ${COMPOSE_PROJECT_NAME}_consul_1 ip addr show eth0 | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')"
+BOOTSTRAP_UI="$(docker inspect -f '{{ .NetworkSettings.IPAddress }}' "${COMPOSE_PROJECT_NAME}_consul_1")"
+
 ISRESPONSIVE=0
 while [ $ISRESPONSIVE != 1 ]; do
     echo -n '.'
 
-    curl -fs --connect-timeout 1 http://$BOOTSTRAP_HOST:8500/ui &> /dev/null
+    curl -fs --connect-timeout 1 http://$BOOTSTRAP_UI:8500/ui &> /dev/null
     if [ $? -ne 0 ]
     then
         sleep .3
@@ -46,8 +50,8 @@ while [ $ISRESPONSIVE != 1 ]; do
 done
 echo
 echo 'The bootstrap instance is now running'
-echo "Dashboard: $BOOTSTRAP_HOST:8500/ui/"
-command -v open >/dev/null 2>&1 && `open http://$BOOTSTRAP_HOST:8500/ui/`
+echo "Dashboard: $BOOTSTRAP_UI:8500/ui/"
+command -v open >/dev/null 2>&1 && `open http://$BOOTSTRAP_UI:8500/ui/`
 
 
 echo 'Scaling the Consul raft to three nodes'

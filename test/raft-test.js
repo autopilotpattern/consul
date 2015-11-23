@@ -270,23 +270,22 @@ function listConsul(callback) {
                 return;
             }
             async.each(containers, function (container, cb) {
-                docker.getContainer(container.Id).inspect(
-                    function (e, data) {
-                        if (e) {
-                            cb(e);
-                            return;
-                        }
-                        // dynamically add the Ip and Name field to this object
-                        // so that we can use it later without inspecting
-                        container['Ip'] = data.NetworkSettings.IPAddress;
-                        container['Name'] = container.Names[0].replace('/', '');
-                        cb(null);
-                    });
+                cmd = ['ip','addr','show','eth0']
+                runExec(container, cmd, function(e, ip) {
+                    if (e) {
+                        cb(e);
+                        return;
+                    }
+                    ip = ip.match(/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/g);
+                    container['Ip'] = ip;
+                    cb(null);
+                });
             }, function (inspectErr) {
                 if (inspectErr) {
                     callback(inspectErr, null);
                 }
                 containers.forEach(function (container) {
+                    container['Name'] = container.Names[0].replace('/', '')
                     consul.push(container);
                 });
                 consul.sort(byName);
