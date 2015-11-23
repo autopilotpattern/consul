@@ -3,8 +3,12 @@ var Docker = require('dockerode');
 var Consul = require('consul');
 var async = require('async');
 
-// this will automatically pick up your DOCKER_HOST, DOCKER_CERT_PATH
-var docker = new Docker();
+// dockerode will automatically pick up your DOCKER_HOST, DOCKER_CERT_PATH
+// but we need to set the version explicitly to support Triton
+// ref https://github.com/apocas/dockerode/issues/154
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+var docker = new Docker()
+docker.version = 'v1.20'
 
 listConsul(function (err, consulNodes) {
     if (err) {
@@ -30,7 +34,7 @@ listConsul(function (err, consulNodes) {
 
 // Runs a series of tests on raft behavior for a 3-node Consul cluster
 function run3NodeTests(consulNodes) {
-    console.log('Bootstrap node is:', consulNodes[0].Names[0]);
+    console.log('Bootstrap node is:', consulNodes[0].Name);
     waitForRaft(consulNodes, function (err, results) {
         if (err) {
             console.log(err);
@@ -39,15 +43,15 @@ function run3NodeTests(consulNodes) {
         console.log('Raft is healthy:', results);
     });
 
-    async.series([
-        function (cb) { test3_1(consulNodes, cb); },
-        function (cb) { test3_2(consulNodes, cb); },
-        function (cb) { test3_3(consulNodes, cb); }
-    ],
-    function (err, results) {
-        console.log(err);
-        console.log(results);
-    });
+    // async.series([
+    //     function (cb) { test3_1(consulNodes, cb); },
+    //     function (cb) { test3_2(consulNodes, cb); },
+    //     function (cb) { test3_3(consulNodes, cb); }
+    // ],
+    // function (err, results) {
+    //     console.log(err);
+    //     console.log(results);
+    // });
 }
 
 // Runs a series of tests on raft behavior for a 5-node Consul cluster
@@ -197,6 +201,7 @@ function waitForRaft(containers, callback) {
 
     var isMatch = false;
     var count = 0;
+    var maxCount = 1; // DEBUG 3;
 
     async.doUntil(
         function (cb) {
@@ -206,6 +211,7 @@ function waitForRaft(containers, callback) {
                     return;
                 }
                 peers.sort();
+                console.log('Got peers', peers)
                 isMatch = (expected.length == peers.length) &&
                     expected.every(function (e, i) {
                         return e == peers[i];
@@ -215,7 +221,7 @@ function waitForRaft(containers, callback) {
         },
         function () {
             count++;
-            return (isMatch || count > 3);
+            return (isMatch || count >= maxCount);
         },
         function (err) {
             if (err) {
@@ -270,9 +276,10 @@ function listConsul(callback) {
                             cb(e);
                             return;
                         }
-                        // dynamically add the Ip field to this object
+                        // dynamically add the Ip and Name field to this object
                         // so that we can use it later without inspecting
                         container['Ip'] = data.NetworkSettings.IPAddress;
+                        container['Name'] = container.Names[0].replace('/', '');
                         cb(null);
                     });
             }, function (inspectErr) {
@@ -317,7 +324,7 @@ function getLeader(container, fn) {
 // peers will be an array of strings in the form "{ip}:{port}"
 function getPeers(container, fn) {
     runExec(container,
-            ['curl', '127.0.0.1:8500/v1/status/peers'],
+            ['curl', '-s', '127.0.0.1:8500/v1/status/peers'],
             function (err, peers) {
                 fn(err, matchIpPort(peers));
             });
@@ -328,7 +335,6 @@ function matchIpPort(input) {
     return input.match(/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}:8300/g);
 }
 
-
 // Runs `docker exec` and concatenates stream into a single `results`
 // string for the callback.
 // @param    {container} container to run command on
@@ -336,28 +342,34 @@ function matchIpPort(input) {
 // @callback {callback(err, results)} results
 function runExec(container, command, callback) {
     var options = {
+        AttachStdin: true,
         AttachStdout: true,
         AttachStderr: true,
         Tty: true,
-        Cmd: command
+        Cmd: command,
     };
+
     docker.getContainer(container.Id).exec(options, function (execErr, exec) {
         if (execErr) {
-            callback(execErr, null);
-            return;
+            return callback(execErr, null);
         }
-        exec.start(function (err, stream) {
+        exec.start({Tty: true, Detach: true}, function (err, stream) {
             if (err) {
-                callback(err, null);
-                return;
+                return callback(err, null);
             }
             const chunks = [];
+            var body = '';
+            stream.setEncoding('utf8');
+            stream.once('error', function (error) {
+                callback(error, null);
+            });
+            stream.once('end', function () {
+                callback(null, body); //chunks.join(''));
+            });
             stream.on('data', function (chunk) {
-                chunks.push(chunk);
+                body += chunk;
             });
-            stream.on('end', function () {
-                callback(null, chunks.join(''));
-            });
+
         });
     });
 }
