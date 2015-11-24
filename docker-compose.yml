@@ -1,32 +1,14 @@
-#
-# Start a single consul host for bootstrapping the full consul cluster
-#
-consulbootstrap:
-    image: misterbisson/triton-consul:latest
-    command: bootstrap
-    restart: always
-    mem_limit: 128m
-    ports:
-        - 53
-        - 8300
-        - 8301
-        - 8302
-        - 8400
-        - 8500
-    dns:
-       - 127.0.0.1
-
-#
-# Start the following service with three nodes for reliability
-# These instances depend on the bootstrap instance 
-#
+# Start with a single host which will bootstrap the cluster. Once the
+# cluster is bootstrapped we can set BOOTSTRAP_HOST and scale up
+# more Consul instances.
+# By using automatic bootstrapping via `-bootstrap-expect` and adding
+# the environment variable, we can avoid having to use links. The
+# environment variable is used once at bootstrap and then forever
+# discarded by that node.
 consul:
     image: misterbisson/triton-consul:latest
-    command: raft
     restart: always
     mem_limit: 128m
-    links:
-        - consulbootstrap
     ports:
         - 53
         - 8300
@@ -36,3 +18,12 @@ consul:
         - 8500
     dns:
        - 127.0.0.1
+    environment:
+        - BOOTSTRAP_HOST
+    command: >
+      /opt/containerbuddy/containerbuddy
+      -config file:///etc/containerbuddy.json
+      /bin/consul agent -server
+                  -config-dir=/config
+                  -ui-dir /ui
+                  -bootstrap-expect 3

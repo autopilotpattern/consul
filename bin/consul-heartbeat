@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# 1. check if member of a raft
+#    2a. yes? --> execute health check
+#    2b. no?  --> check if BOOTSTRAP_HOST is set?
+#        3a. no? -->  join self
+#        3b. yes? --> join raft
+
+log() {
+    echo "    $(date -u '+%Y-%m-%d %H:%M:%S') containerbuddy: $@"
+}
+
+if [ $(consul info | awk '/num_peers/{print $3}') == 0 ]; then
+    log "No peers in raft"
+    if [ -n "${BOOTSTRAP_HOST}" ]; then
+        log "Joining raft at ${BOOTSTRAP_HOST}"
+        consul join ${BOOTSTRAP_HOST}
+    else
+        log "Bootstrapping raft with self"
+        consul join $(ip addr show eth0 | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
+    fi
+else
+    consul info &> /dev/null
+    exit $?
+fi
