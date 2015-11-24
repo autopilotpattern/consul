@@ -26,16 +26,13 @@ Detailed example to come....
 
 ## How it works
 
-This demo actually sets up two independent Consul services:
+This demo first starts up a bootstrap node that starts the raft but expects 2 additional nodes before the raft is healthy. Once this node is up and its IP address is obtained, the rest of the nodes are started and joined to the bootstrap IP address (the value is passed in the `BOOTSTRAP_HOST` environment variable).
 
-1. A single-node instance used only for bootstrapping the raft
-1. A three-node instance that other applications can point to
+If a raft instance fails, the data is preserved among the other instances and the overall availability of the service is preserved because any single instance can authoritatively answer for all instances. Applications that depend on the Consul service should re-try failed requests until they get a response.
 
-A running raft has no dependency on the bootstrap instance. New raft instances do need to connect to the bootstrap instance to find the raft, creating a failure gap that is discussed below. If a raft instance fails, the data is preserved among the other instances and the overall availability of the service is preserved because any single instance can authoritatively answer for all instances. Applications that depend on the Consul service should re-try failed requests until they get a response.
+Any new raft instances need to be started with a bootstrap IP address, but after the initial cluster is created, the `BOOTSTRAP_HOST` IP address can be any host currently in the raft. This means there is no dependency on the first node after the cluster has been formed.
 
-Each raft instance will constantly re-register with the bootstrap instance. If the boostrap instance or its data is lost, a new bootstrap instance can be started and all existing raft instances will re-register with it. In a scenario where the bootstrap instance is unavailable, it will be impossible to start raft instances until the bootstrap instance has been restarted and at least one existing raft member has reregistered.
-
-## Triston-specific availability advantages
+## Triton-specific availability advantages
 
 Some details about how Docker containers work on Triton have specific bearing on the durability and availability of this service:
 
