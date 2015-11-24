@@ -32,98 +32,115 @@ listConsul(function (err, consulNodes) {
     return;
 });
 
-// Runs a series of tests on raft behavior for a 3-node Consul cluster
+// runs a series of tests on raft behavior for a 3-node Consul cluster
 function run3NodeTests(consulNodes) {
     console.log('Bootstrap node is:', consulNodes[0].Name);
-    waitForRaft(consulNodes, function (err, results) {
+    waitForElection(consulNodes, function (err, result) {
         if (err) {
             console.log(err);
             return;
         }
-        console.log('Raft is healthy:', results);
-    });
-
-    async.series([
-        function (cb) { test3_1(consulNodes, cb); },
-        function (cb) { test3_2(consulNodes, cb); },
-        function (cb) { test3_3(consulNodes, cb); }
-    ],
-    function (err, results) {
-        console.log(err);
-        console.log(results);
+        console.log('raft is healthy: ', result);
+        async.series([
+            function (cb) { test3_1(consulNodes, cb); },
+            function (cb) { test3_2(consulNodes, cb); },
+            function (cb) { test3_3(consulNodes, cb); }
+        ], function (errResult, testResults) {
+            if (errResult) {
+                console.log(errResult);
+            } else {
+                for (var i in testResults) {
+                    if (!testResults[i]) {
+                        console.log('Failed!', testResults);
+                        return;
+                    }
+                }
+                console.log('Passed!');
+            }
+        });
     });
 }
 
 // Runs a series of tests on raft behavior for a 5-node Consul cluster
 function run5NodeTests(consulNodes) {
     console.log('Bootstrap node is:', consulNodes[0].Names[0]);
-    waitForRaft(consulNodes, function (err, results) {
+    waitForElection(consulNodes, function (err, result) {
         if (err) {
             console.log(err);
             return;
         }
-        console.log('Raft is healthy:', results);
-    });
-
-    async.series([
-        function (cb) { test5_1(consulNodes, cb); },
-        function (cb) { test5_2(consulNodes, cb); }
-    ],
-    function (err, results) {
-        console.log(err);
-        console.log(results);
+        console.log('raft is healthy: ', result);
+        async.series([
+            function (cb) { test5_1(consulNodes, cb); },
+            function (cb) { test5_2(consulNodes, cb); }
+        ], function (errResult, testResults) {
+            if (errResult) {
+                console.log(errResult);
+            } else {
+                for (var i in testResults) {
+                    if (!testResults[i]) {
+                        console.log('Failed!', testResults);
+                        return;
+                    }
+                }
+                console.log('Passed!');
+            }
+        });
     });
 }
 
 
 // Test that a non-bootstrap node rejoins the raft after reboot
 function test3_1(consulNodes, callback) {
-    var consul3 = consulNodes[2];
+    console.log('[test3_1] -----------------------------');
+    var consul1 = consulNodes[0],
+        consul2 = consulNodes[1],
+        consul3 = consulNodes[2];
+
     async.series([
         function (cb) { stop(consul3, cb); },
-        function (cb) { waitForRaft([consulNodes[0], consulNodes[1]], cb); },
-        function (cb) { testWrites([consulNodes[0], consulNodes[1]],
-                                   'consistent', true, cb); },
+        function (cb) { waitForElection([consul1, consul2], cb); },
         function (cb) { start(consul3, cb); },
-        function (cb) { waitForRaft(consulNodes, cb); }
-    ],
-    function (err, results) {
-        callback(err, results);
+        function (cb) { waitForElection(consulNodes, cb); }
+    ], function (err, results) {
+        callback(err, results[results.length - 1]);
     });
 }
 
 // Test that the bootstrap node rejoins the same raft after reboot
 function test3_2(consulNodes, callback) {
-    var consul1 = consulNodes[0];
-    async.series([
-        function (cb) { stop(consul1, cb); },
-        function (cb) { waitForRaft([consulNodes[1], consulNodes[2]], cb); },
-        function (cb) { start(consul1, cb); },
-        function (cb) { waitForRaft(consulNodes, cb); }
-    ],
-    function (err, results) {
-        callback(err, results);
-    });
-}
-
-// Test that non-bootstrap nodes rejoin the raft even if bootstrap
-// node is gone
-function test3_3(consulNodes, callback) {
+    console.log('[test3_2] -----------------------------');
     var consul1 = consulNodes[0],
         consul2 = consulNodes[1],
         consul3 = consulNodes[2];
 
     async.series([
         function (cb) { stop(consul1, cb); },
-        function (cb) { stop(consul2, cb); },
+        function (cb) { waitForElection([consul2, consul3], cb); },
+        function (cb) { start(consul1, cb); },
+        function (cb) { waitForElection(consulNodes, cb); }
+    ], function (err, results) {
+        callback(err, results[results.length - 1]);
+    });
+}
+
+// Test that non-bootstrap nodes rejoin the raft even if bootstrap
+// node is gone
+function test3_3(consulNodes, callback) {
+    console.log('[test3_3] -----------------------------');
+    var consul1 = consulNodes[0],
+        consul2 = consulNodes[1],
+        consul3 = consulNodes[2];
+
+    async.series([
+        function (cb) { stop(consul1, cb); },
         function (cb) { stop(consul3, cb); },
         function (cb) { start(consul3, cb); },
-        function (cb) { waitForRaft([consul3, consul2], cb); },
+        function (cb) { waitForElection([consul3, consul2], cb); },
         function (cb) { start(consul1, cb); },
-        function (cb) { waitForRaft(consulNodes, cb); }
-    ],
-    function (err, results) {
-        callback(err, results);
+        function (cb) { waitForElection(consulNodes, cb); }
+    ], function (err, results) {
+        callback(err, results[results.length - 1]);
     });
 }
 
@@ -144,14 +161,13 @@ function test5_1(consulNodes, callback) {
         function (cb) { testWrites([consul3, consul4, consul5],
                                    'consistent', false, cb); },
         function (cb) { start(consul2, cb); },
-        function (cb) { waitForRaft(consulNodes.slice(1), cb); },
+        function (cb) { waitForElection(consulNodes.slice(1), cb); },
         function (cb) { testWrites([consul3, consul4, consul5],
                                    'consistent', true, cb); },
         function (cb) { start(consul1, cb); },
-        function (cb) { waitForRaft(consulNodes, cb); }
-    ],
-    function (err, results) {
-        callback(err, results);
+        function (cb) { waitForElection(consulNodes, cb); }
+    ], function (err, results) {
+        callback(err, results[results.length - 1]);
     });
 }
 
@@ -172,32 +188,30 @@ function test5_2(consulNodes, callback) {
                                    'consistent', false, cb); },
         function (cb) { healNetsplit([consul1, consul2, consul3,
                                       consul4, consul5], cb); },
-        function (cb) { waitForRaft(consulNodes, cb); },
+        function (cb) { waitForElection(consulNodes, cb); },
         function (cb) { testWrites([consul1, consul2],
                                    'consistent', true, cb); }
-    ],
-    function (err, results) {
-        callback(err, results);
+    ], function (err, results) {
+        callback(err, results[results.length - 1]);
     });
 }
 
 
 // Queries Consul to determine the status of the raft. Compares the status
-// against a list of containers and verifies that they match exactly and
-// that one of those nodes is the leader. If failing, will retry twice with
-// some backoff and then return error to the callback if the raft still has
-// not healed.
+// against a list of containers and verifies that the leader is among those
+// nodes. If failing, will retry twice with some backoff and then return
+// error to the callback if the raft still has not healed.
 // @param    {containers} array of container objects from our Consul nodes
 //           array that should be members of the raft.
 // @callback {callback} function(err, result)
-function waitForRaft(containers, callback) {
+function waitForElection(containers, callback) {
 
     var expected = [];
     containers.forEach(function (container) {
         expected.push(container.Ip+':8300');
     });
     expected.sort();
-    console.log('Expected peers', expected);
+    console.log('expected peers:', expected.toString());
 
     var isMatch = false;
     var count = 0;
@@ -205,17 +219,12 @@ function waitForRaft(containers, callback) {
 
     async.doUntil(
         function (cb) {
-            getPeers(containers[0], function (err, peers) {
-                if (err || !peers) {
+            getLeader(containers[0], function (err, leader) {
+                if (err || !leader) {
                     cb(err);
                     return;
                 }
-                peers.sort();
-                console.log('Got peers', peers);
-                isMatch = (expected.length == peers.length) &&
-                    expected.every(function (e, i) {
-                        return e == peers[i];
-                    });
+                isMatch = (expected.indexOf(leader) != -1);
                 cb(null);
             });
         },
@@ -228,9 +237,11 @@ function waitForRaft(containers, callback) {
                 return callback(err, false);
             } else {
                 if (!isMatch) {
-                    return callback('Error: not a match', null);
+                    return callback(('error: raft leader is not '+
+                                     'among expected nodes'), null);
                 }
-                return callback(null, isMatch);
+                console.log('raft leader is among expected nodes');
+                return callback(null, true);
             }
         });
 }
@@ -304,11 +315,13 @@ function byName(a, b) {
 
 // @callback {fn} function(err, result)
 function stop(container, fn) {
+    console.log('stopping', container.Name);
     docker.getContainer(container.Id).stop(fn);
 }
 
 // @callback {fn} function(err, result)
 function start(container, fn) {
+    console.log('starting', container.Name);
     docker.getContainer(container.Id).start(fn);
 }
 
@@ -317,7 +330,10 @@ function getLeader(container, fn) {
     runExec(container,
             ['curl', '127.0.0.1:8500/v1/status/leader'],
             function (err, leader) {
-                fn(err, matchIpPort(leader)[0]);
+                if (err || leader === null) {
+                    return fn(err, null);
+                }
+                return fn(null, matchIpPort(leader)[0]);
             });
 }
 
@@ -327,7 +343,10 @@ function getPeers(container, fn) {
     runExec(container,
             ['curl', '-s', '127.0.0.1:8500/v1/status/peers'],
             function (err, peers) {
-                fn(err, matchIpPort(peers));
+                if (err || peers === null) {
+                    return fn(err, null);
+                }
+                return fn(null, matchIpPort(peers));
             });
 }
 
