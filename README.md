@@ -2,6 +2,9 @@
 
 [Consul](http://www.consul.io/) in Docker, designed for availability and durability.
 
+[![DockerPulls](https://img.shields.io/docker/pulls/sequenceiq/spark.svg)](https://registry.hub.docker.com/u/misterbisson/triton-consul/)
+[![DockerStars](https://img.shields.io/docker/stars/sequenceiq/spark.svg)](https://registry.hub.docker.com/u/misterbisson/triton-consul/)
+
 ## Prep your environment
 
 1. [Get a Joyent account](https://my.joyent.com/landing/signup/) and [add your SSH key](https://docs.joyent.com/public-cloud/getting-started).
