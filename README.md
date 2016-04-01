@@ -1,9 +1,9 @@
-# Triton trusted Consul
+# Consul autopilot pattern
 
 [Consul](http://www.consul.io/) in Docker, designed for availability and durability.
 
-[![DockerPulls](https://img.shields.io/docker/pulls/misterbisson/triton-consul.svg)](https://registry.hub.docker.com/u/misterbisson/triton-consul/)
-[![DockerStars](https://img.shields.io/docker/stars/misterbisson/triton-consul.svg)](https://registry.hub.docker.com/u/misterbisson/triton-consul/)
+[![DockerPulls](https://img.shields.io/docker/pulls/autopilotpattern/consul.svg)](https://registry.hub.docker.com/u/autopilotpattern/consul/)
+[![DockerStars](https://img.shields.io/docker/stars/autopilotpattern/consul.svg)](https://registry.hub.docker.com/u/autopilotpattern/consul/)
 
 ## Prep your environment
 
@@ -18,7 +18,7 @@ curl -O https://raw.githubusercontent.com/joyent/sdc-docker/master/tools/sdc-doc
 
 ## Start a trusted Consul raft
 
-1. [Clone](https://github.com/misterbisson/triton-consul) or [download](https://github.com/misterbisson/triton-consul/archive/master.zip) this repo
+1. [Clone](https://github.com/autopilotpattern/consul) or [download](https://github.com/autopilotpattern/consul/archive/master.zip) this repo
 1. `cd` into the cloned or downloaded directory
 1. Execute `bash start.sh` to start everything up
 1. The Consul dashboard should automatically open in your browser, or follow the links output by the `start.sh` script

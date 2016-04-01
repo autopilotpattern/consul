@@ -6,7 +6,7 @@
 # environment variable is used once at bootstrap and then forever
 # discarded by that node.
 consul:
-    image: misterbisson/triton-consul:latest
+    image: autopilotpattern/consul:latest
     restart: always
     mem_limit: 128m
     ports:
