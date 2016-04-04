@@ -1,39 +1,35 @@
-FROM alpine:3.2
+FROM alpine:3.3
 MAINTAINER 	Casey Bisson <casey.bisson@gmail.com>
 
+ENV CONSUL_VERSION=0.6.4
+ENV CONTAINERBUDDY_VERSION=1.3.0
+
 # Alpine packages
-# Note: glibc is required because the Consul binary we're using is built against it
-RUN apk --update \
+RUN apk --no-cache \
     add \
         curl \
         bash \
-        ca-certificates && \
-    curl -Ls https://circle-artifacts.com/gh/andyshinn/alpine-pkg-glibc/6/artifacts/0/home/ubuntu/alpine-pkg-glibc/packages/x86_64/glibc-2.21-r2.apk > /tmp/glibc-2.21-r2.apk && \
-    apk add --allow-untrusted /tmp/glibc-2.21-r2.apk && \
-    rm -rf /tmp/glibc-2.21-r2.apk /var/cache/apk/*
+        ca-certificates
 
 # The Consul binary
-ADD https://releases.hashicorp.com/consul/0.6.0/consul_0.6.0_linux_amd64.zip /tmp/consul.zip
-RUN cd /bin && \
+RUN curl -Lo /tmp/consul.zip https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip && \
+    cd /bin && \
     unzip /tmp/consul.zip && \
     chmod +x /bin/consul && \
     rm /tmp/consul.zip
 
 # The Consul web UI
-ADD https://releases.hashicorp.com/consul/0.6.0/consul_0.6.0_web_ui.zip /tmp/webui.zip
-RUN mkdir /ui && \
+RUN curl -Lo /tmp/webui.zip https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_web_ui.zip && \
+    mkdir /ui && \
     cd /ui && \
     unzip /tmp/webui.zip && \
     rm /tmp/webui.zip
 
 # get Containerbuddy release
-RUN export CB=containerbuddy-0.0.5-alpha &&\
-    mkdir -p /opt/containerbuddy && \
-    curl -Lo /tmp/${CB}.tar.gz \
-    https://github.com/joyent/containerbuddy/releases/download/0.0.5/containerbuddy-0.0.5.tar.gz && \
-    tar xzf /tmp/${CB}.tar.gz -C /tmp && \
-    rm /tmp/${CB}.tar.gz && \
-    mv /tmp/containerbuddy /opt/containerbuddy/
+RUN mkdir -p /opt/containerbuddy && \
+    curl -Lo /tmp/containerbuddy.tar.gz https://github.com/joyent/containerbuddy/releases/download/${CONTAINERBUDDY_VERSION}/containerbuddy-${CONTAINERBUDDY_VERSION}.tar.gz && \
+    tar xzf /tmp/containerbuddy.tar.gz -C /opt/containerbuddy/ && \
+    rm /tmp/containerbuddy.tar.gz
 COPY containerbuddy.json /etc/
 
 # Consul config
