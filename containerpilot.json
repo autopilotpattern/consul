@@ -1,0 +1,12 @@
+{
+  "consul": "127.0.0.1:8500",
+  "services": [
+    {
+      "name": "consul",
+      "port": 8500,
+      "health": "/bin/consul-heartbeat",
+      "poll": 10,
+      "ttl": 25
+    }
+  ]
+}

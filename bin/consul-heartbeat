@@ -7,7 +7,7 @@
 #        3b. yes? --> join raft
 
 log() {
-    echo "    $(date -u '+%Y-%m-%d %H:%M:%S') containerbuddy: $@"
+    echo "    $(date -u '+%Y-%m-%d %H:%M:%S') containerpilot: $@"
 }
 
 if [ $(consul info | awk '/num_peers/{print $3}') == 0 ]; then

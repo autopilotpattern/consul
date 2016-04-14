@@ -21,8 +21,8 @@ consul:
     environment:
         - BOOTSTRAP_HOST
     command: >
-      /opt/containerbuddy/containerbuddy
-      -config file:///etc/containerbuddy.json
+      /opt/containerpilot/containerpilot
+      -config file:///etc/containerpilot.json
       /bin/consul agent -server
                   -config-dir=/config
                   -ui-dir /ui
