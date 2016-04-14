@@ -39,11 +39,15 @@ ONBUILD ADD ./config /config/
 # copy bootstrap scripts
 COPY ./bin/* /bin/
 
-EXPOSE 8300 8301 8301/udp 8302 8302/udp 8400 8500 53 53/udp
-
 # Put Consul data on a separate volume to avoid filesystem performance issues with Docker image layers
 # Not necessary on Triton, but...
 VOLUME ["/data"]
+
+# We don't need to expose these ports in order for other containers on Triton
+# to reach this container in the default networking environment, but if we
+# leave this here then we get the ports as well-known environment variables
+# for purposes of linking.
+EXPOSE 8300 8301 8301/udp 8302 8302/udp 8400 8500 53 53/udp
 
 #ENV GOMAXPROCS 2
 ENV SHELL /bin/bash
