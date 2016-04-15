@@ -29,7 +29,7 @@ RUN curl -Lo /tmp/webui.zip https://releases.hashicorp.com/consul/${CONSUL_VERSI
 RUN mkdir -p /opt/containerpilot && \
     curl -Lo /tmp/containerpilot.tar.gz https://github.com/joyent/containerpilot/releases/download/${CONTAINERPILOT_VERSION}/containerpilot-${CONTAINERPILOT_VERSION}.tar.gz && \
     tar xzf /tmp/containerpilot.tar.gz -C /opt/containerpilot/ && \
-    rm /tmp/containerpilot.tar.gz
+    rm /tmp/containerpilot.tar.gz && ls /opt/containerpilot/
 COPY containerpilot.json /etc/
 
 # Consul config

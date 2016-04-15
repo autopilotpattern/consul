@@ -16,7 +16,7 @@ done
 shift $(expr $OPTIND - 1 )
 
 # give the docker remote api more time before timeout
-export DOCKER_CLIENT_TIMEOUT=300
+export COMPOSE_HTTP_TIMEOUT=300
 
 echo 'Starting a Triton trusted Consul service'
 
