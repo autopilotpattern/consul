@@ -2,7 +2,7 @@ FROM alpine:3.3
 MAINTAINER Casey Bisson <casey.bisson@gmail.com>
 
 ENV CONSUL_VERSION=0.6.4
-ENV CONTAINERPILOT_VERSION=2.0.0
+ENV CONTAINERPILOT_VERSION=2.0.1
 
 # Alpine packages
 RUN apk --no-cache \
@@ -29,7 +29,7 @@ RUN curl -Lo /tmp/webui.zip https://releases.hashicorp.com/consul/${CONSUL_VERSI
 RUN mkdir -p /opt/containerpilot && \
     curl -Lo /tmp/containerpilot.tar.gz https://github.com/joyent/containerpilot/releases/download/${CONTAINERPILOT_VERSION}/containerpilot-${CONTAINERPILOT_VERSION}.tar.gz && \
     tar xzf /tmp/containerpilot.tar.gz -C /opt/containerpilot/ && \
-    rm /tmp/containerpilot.tar.gz && ls /opt/containerpilot/
+    rm /tmp/containerpilot.tar.gz
 COPY containerpilot.json /etc/
 
 # Consul config
