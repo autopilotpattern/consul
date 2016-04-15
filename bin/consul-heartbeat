@@ -7,10 +7,10 @@
 #        3b. yes? --> join raft
 
 log() {
-    echo "    $(date -u '+%Y-%m-%d %H:%M:%S') containerbuddy: $@"
+    echo "    $(date -u '+%Y-%m-%d %H:%M:%S') containerpilot: $@"
 }
 
-if [ $(consul info | awk '/num_peers/{print $3}') == 0 ]; then
+if [ $(consul info | awk '/num_peers/{print$3}') == 0 ]; then
     log "No peers in raft"
     if [ -n "${BOOTSTRAP_HOST}" ]; then
         log "Joining raft at ${BOOTSTRAP_HOST}"

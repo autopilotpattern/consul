@@ -7,6 +7,8 @@
 # discarded by that node.
 consul:
     image: autopilotpattern/consul:latest
+    labels:
+      - triton.cns.services=consul
     restart: always
     mem_limit: 128m
     ports:
@@ -21,8 +23,8 @@ consul:
     environment:
         - BOOTSTRAP_HOST
     command: >
-      /opt/containerbuddy/containerbuddy
-      -config file:///etc/containerbuddy.json
+      /opt/containerpilot/containerpilot
+      -config file:///etc/containerpilot.json
       /bin/consul agent -server
                   -config-dir=/config
                   -ui-dir /ui

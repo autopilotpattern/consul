@@ -1,8 +1,8 @@
 FROM alpine:3.3
-MAINTAINER 	Casey Bisson <casey.bisson@gmail.com>
+MAINTAINER Casey Bisson <casey.bisson@gmail.com>
 
 ENV CONSUL_VERSION=0.6.4
-ENV CONTAINERBUDDY_VERSION=1.3.0
+ENV CONTAINERPILOT_VERSION=2.0.1
 
 # Alpine packages
 RUN apk --no-cache \
@@ -25,12 +25,12 @@ RUN curl -Lo /tmp/webui.zip https://releases.hashicorp.com/consul/${CONSUL_VERSI
     unzip /tmp/webui.zip && \
     rm /tmp/webui.zip
 
-# get Containerbuddy release
-RUN mkdir -p /opt/containerbuddy && \
-    curl -Lo /tmp/containerbuddy.tar.gz https://github.com/joyent/containerbuddy/releases/download/${CONTAINERBUDDY_VERSION}/containerbuddy-${CONTAINERBUDDY_VERSION}.tar.gz && \
-    tar xzf /tmp/containerbuddy.tar.gz -C /opt/containerbuddy/ && \
-    rm /tmp/containerbuddy.tar.gz
-COPY containerbuddy.json /etc/
+# get Containerpilot release
+RUN mkdir -p /opt/containerpilot && \
+    curl -Lo /tmp/containerpilot.tar.gz https://github.com/joyent/containerpilot/releases/download/${CONTAINERPILOT_VERSION}/containerpilot-${CONTAINERPILOT_VERSION}.tar.gz && \
+    tar xzf /tmp/containerpilot.tar.gz -C /opt/containerpilot/ && \
+    rm /tmp/containerpilot.tar.gz
+COPY containerpilot.json /etc/
 
 # Consul config
 COPY ./config /config/
@@ -39,11 +39,15 @@ ONBUILD ADD ./config /config/
 # copy bootstrap scripts
 COPY ./bin/* /bin/
 
-EXPOSE 8300 8301 8301/udp 8302 8302/udp 8400 8500 53 53/udp
-
 # Put Consul data on a separate volume to avoid filesystem performance issues with Docker image layers
 # Not necessary on Triton, but...
 VOLUME ["/data"]
 
-ENV GOMAXPROCS 2
+# We don't need to expose these ports in order for other containers on Triton
+# to reach this container in the default networking environment, but if we
+# leave this here then we get the ports as well-known environment variables
+# for purposes of linking.
+EXPOSE 8300 8301 8301/udp 8302 8302/udp 8400 8500 53 53/udp
+
+#ENV GOMAXPROCS 2
 ENV SHELL /bin/bash
