@@ -1,9 +1,11 @@
-# Consul autopilot pattern
+# Autopilot Pattern Consul
 
 [Consul](http://www.consul.io/) in Docker, designed for availability and durability.
 
 [![DockerPulls](https://img.shields.io/docker/pulls/autopilotpattern/consul.svg)](https://registry.hub.docker.com/u/autopilotpattern/consul/)
 [![DockerStars](https://img.shields.io/docker/stars/autopilotpattern/consul.svg)](https://registry.hub.docker.com/u/autopilotpattern/consul/)
+[![ImageLayers](https://badge.imagelayers.io/autopilotpattern/consul:latest.svg)](https://imagelayers.io/?images=autopilotpattern/consul:latest)
+[![Join the chat at https://gitter.im/autopilotpattern/general](https://badges.gitter.im/autopilotpattern/general.svg)](https://gitter.im/autopilotpattern/general)
 
 ## Prep your environment
 
