@@ -1,10 +1,7 @@
-# Start with a single host which will bootstrap the cluster. Once the
-# cluster is bootstrapped we can set BOOTSTRAP_HOST and scale up
-# more Consul instances.
-# By using automatic bootstrapping via `-bootstrap-expect` and adding
-# the environment variable, we can avoid having to use links. The
-# environment variable is used once at bootstrap and then forever
-# discarded by that node.
+# Service definition for Consul cluster with a minimum of 3 nodes.
+# Nodes will use Triton CNS for the service (passed in via the CONSUL
+# env var) to find each other and bootstrap the cluster.
+
 consul:
     image: autopilotpattern/consul:latest
     labels:
@@ -12,20 +9,14 @@ consul:
     restart: always
     mem_limit: 128m
     ports:
-        - 53
-        - 8300
-        - 8301
-        - 8302
-        - 8400
         - 8500
     dns:
        - 127.0.0.1
-    environment:
-        - BOOTSTRAP_HOST
+    env_file:
+      - _env
     command: >
-      /opt/containerpilot/containerpilot
-      -config file:///etc/containerpilot.json
+      /usr/local/bin/containerpilot
       /bin/consul agent -server
-                  -config-dir=/config
-                  -ui-dir /ui
-                  -bootstrap-expect 3
+        -bootstrap-expect 3
+        -config-dir=/etc/consul
+        -ui-dir /ui

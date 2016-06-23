@@ -1,5 +1,33 @@
+consul-bootstrap:
+    extends:
+      file: docker-compose.yml
+      service: consul
+    build: .
+    environment:
+      # because this is just for local testing we're going
+      # to just hack around the lack of DNS
+      - CONSUL=127.0.0.1
+
 consul:
     extends:
       file: docker-compose.yml
       service: consul
     build: .
+    links:
+      - consul-bootstrap:consul_bootstrap
+    environment:
+      # because this is just for local testing we're going
+      # to just hack around the lack of DNS
+      - CONSUL=consul_bootstrap
+
+
+
+# consul:
+#     extends:
+#       file: docker-compose.yml
+#       service: consul
+#     build: .
+#     environment:
+#       # because this is just for local testing we're going
+#       # to just hack around the lack of DNS
+#       - CONSUL=172.17.0.2

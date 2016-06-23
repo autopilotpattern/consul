@@ -10,5 +10,5 @@ build:
 	docker build -t="autopilotpattern/consul:${TAG}" .
 
 # push our image to the public registry
-ship: build
+ship:
 	docker push "autopilotpattern/consul:${TAG}"
