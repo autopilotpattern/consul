@@ -1,33 +1,24 @@
-consul-bootstrap:
-    extends:
-      file: docker-compose.yml
-      service: consul
+version: '2'
+
+# Service definition for Consul cluster with a minimum of 3 nodes.
+# For local development we use Compose v2 so that we have an automatically
+# created user-defined network and internal DNS for the name "consul".
+# Nodes will use Docker DNS for the service (passed in via the CONSUL
+# env var) to find each other and bootstrap the cluster.
+services:
+  consul:
     build: .
+    restart: always
+    mem_limit: 128m
+    ports:
+        - 8500
+    dns:
+       - 127.0.0.1
     environment:
-      # because this is just for local testing we're going
-      # to just hack around the lack of DNS
-      - CONSUL=127.0.0.1
-
-consul:
-    extends:
-      file: docker-compose.yml
-      service: consul
-    build: .
-    links:
-      - consul-bootstrap:consul_bootstrap
-    environment:
-      # because this is just for local testing we're going
-      # to just hack around the lack of DNS
-      - CONSUL=consul_bootstrap
-
-
-
-# consul:
-#     extends:
-#       file: docker-compose.yml
-#       service: consul
-#     build: .
-#     environment:
-#       # because this is just for local testing we're going
-#       # to just hack around the lack of DNS
-#       - CONSUL=172.17.0.2
+      - CONSUL=consul
+    command: >
+      /usr/local/bin/containerpilot
+      /bin/consul agent -server
+        -bootstrap-expect 3
+        -config-dir=/etc/consul
+        -ui-dir /ui
