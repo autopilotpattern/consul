@@ -1,41 +1,84 @@
-# Autopilot Pattern Consul
+# Consul with the Autopilot Pattern
 
-[Consul](http://www.consul.io/) in Docker, designed for availability and durability.
+[Consul](http://www.consul.io/) in Docker, designed to be self-operating according to the autopilot pattern. This application demonstrates support for configuring the Consul raft so it can be used as a highly-available discovery catalog for other applications using the Autopilot pattern.
 
 [![DockerPulls](https://img.shields.io/docker/pulls/autopilotpattern/consul.svg)](https://registry.hub.docker.com/u/autopilotpattern/consul/)
 [![DockerStars](https://img.shields.io/docker/stars/autopilotpattern/consul.svg)](https://registry.hub.docker.com/u/autopilotpattern/consul/)
 [![ImageLayers](https://badge.imagelayers.io/autopilotpattern/consul:latest.svg)](https://imagelayers.io/?images=autopilotpattern/consul:latest)
 [![Join the chat at https://gitter.im/autopilotpattern/general](https://badges.gitter.im/autopilotpattern/general.svg)](https://gitter.im/autopilotpattern/general)
 
-## Prep your environment
+
+## Using Consul with ContainerPilot
+
+This design starts up all Consul instances with the `-bootstrap-expect` flag. This option tells Consul how many nodes we expect and automatically bootstraps when that many servers are available. We still need to tell Consul how to find the other nodes, and this is where [Triton Container Name Service (CNS)](https://docs.joyent.com/public-cloud/network/cns) and [ContainerPilot](https://joyent.com/containerpilot) come into play.
+
+The ContainerPilot configuration has a management script that is run on each health check interval. This management script runs `consul info` and gets the number of peers for this node. If the number of peers is not equal to 2 (there are 3 nodes in total but a node isn't its own peer), then the script will attempt to find another node via `consul join`. This command will use the Triton CNS name for the Consul service. Because each node is automatically added to the A Record for the CNS name when it starts, the nodes will all eventually find at least one other node and bootstrap the Consul raft.
+
+When run locally for testing, we don't have access to Triton CNS. The `local-compose.yml` file uses the v2 Compose API, which automatically creates a user-defined network and allows us to use Docker DNS for the service.
+
+## Run it!
 
 1. [Get a Joyent account](https://my.joyent.com/landing/signup/) and [add your SSH key](https://docs.joyent.com/public-cloud/getting-started).
-1. Install and the [Docker Engine](https://docs.docker.com/installation/mac/) (including `docker` and `docker-compose`) on your laptop or other environment, along with the [Joyent CloudAPI CLI tools](https://apidocs.joyent.com/cloudapi/#getting-started) (including the `smartdc` and `json` tools).
-1. [Configure your Docker CLI and Compose for use with Joyent](https://docs.joyent.com/public-cloud/api-access/docker):
+1. Install the [Docker Toolbox](https://docs.docker.com/installation/mac/) (including `docker` and `docker-compose`) on your laptop or other environment, as well as the [Joyent Triton CLI](https://www.joyent.com/blog/introducing-the-triton-command-line-tool) (`triton` replaces our old `sdc-*` CLI tools).
+
+Check that everything is configured correctly by running `./setup.sh`. This will check that your environment is setup correctly and will create an `_env` file that includes injecting an environment variable for a service name for Consul in Triton CNS. We'll use this CNS name to bootstrap the cluster.
+
+```bash
+$ docker-compose up -d
+Creating consul_consul_1
+
+$ docker-compose scale consul=3
+Creating and starting consul_consul_2 ...
+Creating and starting consul_consul_3 ...
+
+$ docker-compose ps
+Name                        Command                 State       Ports
+--------------------------------------------------------------------------------
+consul_consul_1   /usr/local/bin/containerpilot...   Up   53/tcp, 53/udp,
+                                                          8300/tcp, 8301/tcp,
+                                                          8301/udp, 8302/tcp,
+                                                          8302/udp, 8400/tcp,
+                                                          0.0.0.0:8500->8500/tcp
+consul_consul_2   /usr/local/bin/containerpilot...   Up   53/tcp, 53/udp,
+                                                          8300/tcp, 8301/tcp,
+                                                          8301/udp, 8302/tcp,
+                                                          8302/udp, 8400/tcp,
+                                                          0.0.0.0:8500->8500/tcp
+consul_consul_3   /usr/local/bin/containerpilot...   Up   53/tcp, 53/udp,
+                                                          8300/tcp, 8301/tcp,
+                                                          8301/udp, 8302/tcp,
+                                                          8302/udp, 8400/tcp,
+                                                          0.0.0.0:8500->8500/tcp
+
+$ docker exec -it consul_consul_3 consul info | grep num_peers
+    num_peers = 2
 
 ```
-curl -O https://raw.githubusercontent.com/joyent/sdc-docker/master/tools/sdc-docker-setup.sh && chmod +x sdc-docker-setup.sh
- ./sdc-docker-setup.sh -k us-east-1.api.joyent.com <ACCOUNT> ~/.ssh/<PRIVATE_KEY_FILE>
+
+
+## Using this in your own composition
+
+The Consul service definition can be dropped into any Docker Compose file. Set the ContainerPilot configuration for each other service to use the `CONSUL` environment variable as its Consul target and populate this with the CNS name. On Triton, you should consider using a Consul agent in the application container as a `coprocess`, and point this agent to the `CONSUL` environment variable. The relevant section of the ContainerPilot configuration might look like this:
+
+```json
+{
+  "consul": "localhost:8500",
+  "coprocesses": [
+    {
+      "command": ["/usr/local/bin/consul", "agent",
+                  "-data-dir=/data",
+                  "-config-dir=/config",
+                  "-rejoin",
+                  "-retry-join", "{{ .CONSUL }}",
+                  "-retry-max", "10",
+                  "-retry-interval", "10s"],
+      "restarts": "unlimited"
+    }]
+  }
+}
 ```
 
-## Start a trusted Consul raft
-
-1. [Clone](https://github.com/autopilotpattern/consul) or [download](https://github.com/autopilotpattern/consul/archive/master.zip) this repo
-1. `cd` into the cloned or downloaded directory
-1. Execute `bash start.sh` to start everything up
-1. The Consul dashboard should automatically open in your browser, or follow the links output by the `start.sh` script
-
-## Use this in your own composition
-
-Detailed example to come....
-
-## How it works
-
-This demo first starts up a bootstrap node that starts the raft but expects 2 additional nodes before the raft is healthy. Once this node is up and its IP address is obtained, the rest of the nodes are started and joined to the bootstrap IP address (the value is passed in the `BOOTSTRAP_HOST` environment variable).
-
-If a raft instance fails, the data is preserved among the other instances and the overall availability of the service is preserved because any single instance can authoritatively answer for all instances. Applications that depend on the Consul service should re-try failed requests until they get a response.
-
-Any new raft instances need to be started with a bootstrap IP address, but after the initial cluster is created, the `BOOTSTRAP_HOST` IP address can be any host currently in the raft. This means there is no dependency on the first node after the cluster has been formed.
+A more detailed example of a ContainerPilot configuration that uses a Consul agent co-process can be found in [autopilotpattern/nginx](https://github.com/autopilotpattern/nginx).
 
 ## Triton-specific availability advantages
 
@@ -43,8 +86,8 @@ Some details about how Docker containers work on Triton have specific bearing on
 
 1. Docker containers are first-order objects on Triton. They run on bare metal, and their overall availability is similar or better than what you expect of a virtual machine in other environments.
 1. Docker containers on Triton preserve their IP and any data on disk when they reboot.
-1. Linked containers in Docker Compose on Triton are actually distributed across multiple unique physical nodes for maximum availability in the case of  node failures.
+1. Linked containers in Docker Compose on Triton are distributed across multiple unique physical nodes for maximum availability in the case of  node failures.
 
-# Credit where it's due
+## Credit where it's due
 
 This project builds on the fine examples set by [Jeff Lindsay](https://github.com/progrium)'s ([Glider Labs](https://github.com/gliderlabs)) [Consul in Docker](https://github.com/gliderlabs/docker-consul/tree/legacy) work. It also, obviously, wouldn't be possible without the outstanding work of the [Hashicorp team](https://hashicorp.com) that made [consul.io](https://www.consul.io).

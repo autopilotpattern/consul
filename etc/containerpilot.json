@@ -1,10 +1,11 @@
 {
   "consul": "127.0.0.1:8500",
+  "preStart": ["/usr/local/bin/consul-manage", "preStart"],
   "services": [
     {
       "name": "consul",
       "port": 8500,
-      "health": "/bin/consul-heartbeat",
+      "health": ["/usr/local/bin/consul-manage", "health"],
       "poll": 10,
       "ttl": 25
     }

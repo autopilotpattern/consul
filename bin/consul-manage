@@ -1,0 +1,54 @@
+#!/bin/bash
+set -eo pipefail
+
+# Update the -advertise address based on the interface that ContainerPilot
+# has been told to listen on.
+preStart() {
+    _log "Updating consul advertise address"
+    sed -i "s/CONTAINERPILOT_CONSUL_IP/${CONTAINERPILOT_CONSUL_IP}/" /etc/consul/consul.json
+}
+
+# Check if a member of a raft. If consul info returns an error we'll
+# pipefail and exit for a failed health check.
+# If we have no peers then try to join the raft via the CNS svc record.
+# Once a node is connected to at least one other peer it'll get the rest
+# of the raft via the Consul LAN gossip.
+# If we end up joining ourselves we just retry on the next health check
+# until we've got the whole cluster together.
+health() {
+    if [ $(consul info | awk '/num_peers/{print$3}') == 0 ]; then
+        _log "No peers in raft"
+        consul join ${CONSUL}
+    fi
+}
+
+_log() {
+    echo "    $(date -u '+%Y-%m-%d %H:%M:%S') containerpilot: $@"
+}
+
+# ---------------------------------------------------
+# parse arguments
+
+# Get function list
+funcs=($(declare -F -p | cut -d " " -f 3))
+
+until
+    if [ ! -z "$1" ]; then
+        # check if the first arg is a function in this file, or use a default
+        if [[ " ${funcs[@]} " =~ " $1 " ]]; then
+            cmd=$1
+            shift 1
+        fi
+
+        $cmd "$@"
+        if [ $? == 127 ]; then
+            help
+        fi
+
+        exit
+    else
+        health
+    fi
+do
+    echo
+done
