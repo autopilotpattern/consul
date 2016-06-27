@@ -36,7 +36,6 @@ RUN export CONTAINERPILOT_CHECKSUM=ec9dbedaca9f4a7a50762f50768cbc42879c7208 \
 # Consul config
 COPY etc/containerpilot.json etc/
 COPY etc/consul.json etc/consul/
-#ONBUILD ADD ./config /config/
 
 # copy bootstrap scripts
 COPY bin/* /usr/local/bin/
