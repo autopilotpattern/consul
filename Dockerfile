@@ -16,7 +16,7 @@ RUN export CONSUL_CHECKSUM=b350591af10d7d23514ebaa0565638539900cdb3aaa048f077217
     && cd /bin \
     && unzip /tmp/${archive} \
     && chmod +x /bin/consul \
-    rm /tmp/${archive}
+    && rm /tmp/${archive}
 
 # The Consul web UI
 RUN export CONSUL_UI_CHECKSUM=42212089c228a73a0881a5835079c8df58a4f31b5060a3b4ffd4c2497abe3aa8 \
@@ -26,7 +26,7 @@ RUN export CONSUL_UI_CHECKSUM=42212089c228a73a0881a5835079c8df58a4f31b5060a3b4ff
     && mkdir /ui \
     && cd /ui \
     && unzip /tmp/${archive} \
-    rm /tmp/${archive}
+    && rm /tmp/${archive}
 
 # Add Containerpilot and set its configuration
 ENV CONTAINERPILOT_VERSION 2.4.1
