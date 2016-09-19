@@ -11,4 +11,6 @@ build:
 
 # push our image to the public registry
 ship:
+	docker tag autopilotpattern/consul:${TAG} autopilotpattern/consul:latest
 	docker push "autopilotpattern/consul:${TAG}"
+	docker push "autopilotpattern/consul:latest"
