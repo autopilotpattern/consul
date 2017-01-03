@@ -362,7 +362,6 @@ function getPeers(container, fn) {
     runExec(container,
             ['curl', '-s', '127.0.0.1:8500/v1/status/peers'],
             function (err, peers) {
-              console.log('PEERS: ' + peers)
                 if (err || peers === null) {
                     return fn(err, null);
                 }
