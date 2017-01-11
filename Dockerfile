@@ -1,4 +1,4 @@
-FROM alpine:3.4
+FROM alpine:3.5
 
 # Alpine packages
 RUN apk --no-cache \
@@ -8,8 +8,8 @@ RUN apk --no-cache \
         ca-certificates
 
 # The Consul binary
-ENV CONSUL_VERSION=0.7.0
-RUN export CONSUL_CHECKSUM=b350591af10d7d23514ebaa0565638539900cdb3aaa048f077217c4c46653dd8 \
+ENV CONSUL_VERSION=0.7.2
+RUN export CONSUL_CHECKSUM=aa97f4e5a552d986b2a36d48fdc3a4a909463e7de5f726f3c5a89b8a1be74a58 \
     && export archive=consul_${CONSUL_VERSION}_linux_amd64.zip \
     && curl -Lso /tmp/${archive} https://releases.hashicorp.com/consul/${CONSUL_VERSION}/${archive} \
     && echo "${CONSUL_CHECKSUM}  /tmp/${archive}" | sha256sum -c \
@@ -19,7 +19,7 @@ RUN export CONSUL_CHECKSUM=b350591af10d7d23514ebaa0565638539900cdb3aaa048f077217
     && rm /tmp/${archive}
 
 # The Consul web UI
-RUN export CONSUL_UI_CHECKSUM=42212089c228a73a0881a5835079c8df58a4f31b5060a3b4ffd4c2497abe3aa8 \
+RUN export CONSUL_UI_CHECKSUM=c9d2a6e1d1bb6243e5fd23338d92f5c71cdf0a4077f7fcc95fd81800fa1f42a9 \
     && export archive=consul_${CONSUL_VERSION}_web_ui.zip \
     && curl -Lso /tmp/${archive} https://releases.hashicorp.com/consul/${CONSUL_VERSION}/${archive} \
     && echo "${CONSUL_UI_CHECKSUM}  /tmp/${archive}" | sha256sum -c \
@@ -29,10 +29,10 @@ RUN export CONSUL_UI_CHECKSUM=42212089c228a73a0881a5835079c8df58a4f31b5060a3b4ff
     && rm /tmp/${archive}
 
 # Add Containerpilot and set its configuration
-ENV CONTAINERPILOT_VERSION 2.4.1
+ENV CONTAINERPILOT_VERSION 2.6.0
 ENV CONTAINERPILOT file:///etc/containerpilot.json
 
-RUN export CONTAINERPILOT_CHECKSUM=198d96c8d7bfafb1ab6df96653c29701510b833c \
+RUN export CONTAINERPILOT_CHECKSUM=c1bcd137fadd26ca2998eec192d04c08f62beb1f \
     && export archive=containerpilot-${CONTAINERPILOT_VERSION}.tar.gz \
     && curl -Lso /tmp/${archive} \
          "https://github.com/joyent/containerpilot/releases/download/${CONTAINERPILOT_VERSION}/${archive}" \
