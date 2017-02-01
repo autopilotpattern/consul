@@ -52,7 +52,6 @@ ship:
 ## Pull the container images from the Docker Hub
 pull:
 	docker pull $(image):$(tag)
-	docker pull $(test_image):$(tag)
 
 $(DOCKER_CERT_PATH)/key.pub:
 	ssh-keygen -y -f $(DOCKER_CERT_PATH)/key.pem > $(DOCKER_CERT_PATH)/key.pub
@@ -71,9 +70,11 @@ test:
 		-e DOCKER_HOST=$(DOCKER_HOST) \
 		-e DOCKER_TLS_VERIFY=1 \
 		-e DOCKER_CERT_PATH=$(DOCKER_CERT_PATH) \
-		-e CONSUL=consul.svc.$(TRITON_ACCOUNT).$(TRITON_DC).cns.joyent.com \
+		-e TRITON_ACCOUNT=$(TRITON_ACCOUNT) \
+		-e TRITON_DC=$(TRITON_DC) \
 		$(SDC_KEYS_VOL) -w /src \
 		$(test_image):$(tag) python3 tests.py
+
 
 ## Print environment for build debugging
 debug:
