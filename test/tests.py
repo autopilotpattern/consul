@@ -138,7 +138,7 @@ class ConsulStackFiveNodeTest(ConsulStackTest):
         self.docker('kill', self.get_container_name('consul', 1))
         self.docker('kill', self.get_container_name('consul', 2))
         self.docker('kill', self.get_container_name('consul', 3))
-        self.settle('consul', 2)
+        self.instrument(self.settle, 2)
         val = self.consul.kv.get("test_no_quorum_no_consistent_reads",
                                  consistency='consistent')
         self.assertIsNone(val[1])
