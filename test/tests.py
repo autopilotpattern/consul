@@ -54,7 +54,7 @@ class ConsulStackTest(AutopilotPatternTest):
             raise WaitTimeoutError("Timed out waiting for containers to start.")
 
 
-    def converge(self, count, timeout=30):
+    def converge(self, count, timeout=60):
         """
         Wait for the raft to become healthy with 'count' instances
         and an elected leader. Queries Consul to determine the status
@@ -65,11 +65,12 @@ class ConsulStackTest(AutopilotPatternTest):
             try:
                 leader = self.consul.status.leader()
                 peers = self.consul.status.peers()
-                self.assertIsNotNone(peers, "Expected {} peers but got None"
-                                     .format(count))
-                self.assertNotEqual(leader, "",
-                                    "Expected a leader but got none with peers={}"
-                                    .format(peers))
+                self.assertIsNotNone(
+                    peers, "Expected {} peers but got None".format(count))
+                self.assertNotEqual(
+                    leader, "",
+                    "Expected a leader but got none with peers={}"
+                    .format(peers))
                 self.assertIn(leader, peers)
                 self.assertEqual(len(peers), count,
                                  "Expected {} peers but got {}"
@@ -95,7 +96,6 @@ class ConsulStackThreeNodeTest(ConsulStackTest):
         self.docker('restart', self.get_container_name('consul', 1))
         self.instrument(self.settle, 3)
         self.instrument(self.converge, 3)
-
 
 class ConsulStackFiveNodeTest(ConsulStackTest):
 
