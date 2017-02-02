@@ -16,6 +16,7 @@ from testcases import AutopilotPatternTest, WaitTimeoutError, \
      dump_environment_to_file
 
 
+
 class ConsulStackTest(AutopilotPatternTest):
 
     project_name = 'consul'
@@ -31,12 +32,13 @@ class ConsulStackTest(AutopilotPatternTest):
         dc = os.environ['TRITON_DC']
         internal = 'consul.svc.{}.{}.cns.joyent.com'.format(account, dc)
         external = 'consul.svc.{}.{}.triton.zone'.format(account, dc)
+        test_consul_host = os.environ.get('CONSUL', external)
 
         if not os.path.isfile('_env'):
             os.environ['CONSUL'] = internal
             dump_environment_to_file('_env')
 
-        os.environ['CONSUL'] = external
+        os.environ['CONSUL'] = test_consul_host
 
     def settle(self, count, timeout=30):
         """
@@ -111,15 +113,42 @@ class ConsulStackFiveNodeTest(ConsulStackTest):
         self.instrument(self.settle, 5)
         self.instrument(self.converge, 5)
 
-    # TODO
-    # def test_no_quorum_no_consistent_writes(self):
-    #     """
-    #     Given a broken quorum, make sure consistent reads fail
-    #     until the quorum is restored.
-    #     """
-    #     pass
+    def test_no_quorum_no_consistent_reads(self):
+        """
+        Given a broken quorum, make sure consistent reads fail
+        until the quorum is restored.
+        """
+        self.compose_scale('consul', 5)
+        self.instrument(self.settle, 5)
+        self.instrument(self.converge, 5)
 
-    # TODO
+        self.assertTrue(
+            self.consul.kv.put("test_no_quorum_no_consistent_reads", "1"))
+        while True:
+            val = self.consul.kv.get("test_no_quorum_no_consistent_reads",
+                                     consistency='consistent')[1]
+            if val[1]:
+                break
+            else:
+                time.sleep(1)
+
+        self.docker('kill', self.get_container_name('consul', 1))
+        self.docker('kill', self.get_container_name('consul', 2))
+        self.docker('kill', self.get_container_name('consul', 3))
+        self.settle('consul', 2)
+        val = self.consul.kv.get("test_no_quorum_no_consistent_reads",
+                                 consistency='consistent')
+        self.assertIsNone(val[1])
+
+        self.compose_scale('consul', 5)
+        self.instrument(self.settle, 5)
+        self.instrument(self.converge, 5)
+        val = self.consul.kv.get("test_no_quorum_no_consistent_reads",
+                                 consistency='consistent')
+        self.assertIsNotNone(val[1])
+
+
+    # TODO: probably needs tooling to netsplit the containers
     # def test_majority_writes_win(self):
     #     """
     #     Given a healed quorum, make sure majority writes win.
