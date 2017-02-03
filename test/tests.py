@@ -14,7 +14,7 @@ import uuid
 
 from testcases import AutopilotPatternTest, WaitTimeoutError, \
      dump_environment_to_file
-
+import consul as pyconsul
 
 
 class ConsulStackTest(AutopilotPatternTest):
@@ -46,9 +46,9 @@ class ConsulStackTest(AutopilotPatternTest):
         """
         while timeout > 0:
             containers = self.compose_ps()
-            if len(containers) != count:
-                continue
-            if all([container.state == 'Up' for container in containers]):
+            up_containers = [container for container in containers
+                             if container.state == 'Up']
+            if len(up_containers) == count:
                 break
             time.sleep(1)
             timeout -= 1
@@ -56,7 +56,7 @@ class ConsulStackTest(AutopilotPatternTest):
             raise WaitTimeoutError("Timed out waiting for containers to start.")
 
 
-    def converge(self, count, timeout=60):
+    def converge(self, count, timeout=100):
         """
         Wait for the raft to become healthy with 'count' instances
         and an elected leader. Queries Consul to determine the status
@@ -113,50 +113,64 @@ class ConsulStackFiveNodeTest(ConsulStackTest):
         self.instrument(self.settle, 5)
         self.instrument(self.converge, 5)
 
-    def test_no_quorum_no_consistent_reads(self):
+    def test_graceful_leave(self):
+        """
+        Given instances leaving gracefully, make sure reads succeed.
+        """
+        key = "test_graceful_leave"
+        self.compose_scale('consul', 5)
+        self.instrument(self.settle, 5)
+        self.instrument(self.converge, 5)
+        self.assertTrue(self.consul.kv.put(key, "1"))
+        self.docker('stop', self.get_container_name('consul', 3))
+        self.docker('stop', self.get_container_name('consul', 4))
+        self.docker('stop', self.get_container_name('consul', 5))
+        self.instrument(self.settle, 2)
+        val = self.consul.kv.get(key, consistency='consistent')
+        self.assertIsNotNone(val[1])
+
+    def test_quorum_consistency(self):
         """
         Given a broken quorum, make sure consistent reads fail
         until the quorum is restored.
         """
+        key = 'test_no_quorum_no_consistent_reads'
         self.compose_scale('consul', 5)
         self.instrument(self.settle, 5)
         self.instrument(self.converge, 5)
+        self.assertTrue(self.consul.kv.put(key, "1"))
 
-        self.assertTrue(
-            self.consul.kv.put("test_no_quorum_no_consistent_reads", "1"))
-        timeout = 5
-        while timeout > 0:
-            val = self.consul.kv.get("test_no_quorum_no_consistent_reads",
-                                     consistency='consistent')[1]
-            if val:
-                break
-            time.sleep(1)
-            timeout -= 1
-        else:
-            raise WaitTimeoutError("Timed out waiting for key to be consistent.")
+        # netsplit 3 nodes
+        print('netsplitting 3 nodes')
+        self.docker_exec(self.get_container_name('consul', 3),
+                         'ifconfig eth0 down')
+        self.docker_exec(self.get_container_name('consul', 4),
+                         'ifconfig eth0 down')
+        self.docker_exec(self.get_container_name('consul', 5),
+                         'ifconfig eth0 down')
+        # "leadership lost whole committing log"
+        self.assertRaises(pyconsul.base.ConsulException,
+                          self.consul.kv.get, key, consistency='consistent')
 
-        self.docker('kill', self.get_container_name('consul', 1))
-        self.docker('kill', self.get_container_name('consul', 2))
-        self.docker('kill', self.get_container_name('consul', 3))
-        self.instrument(self.settle, 2)
-        val = self.consul.kv.get("test_no_quorum_no_consistent_reads",
-                                 consistency='consistent')
-        self.assertIsNone(val[1])
+        # check writes to isolated node fail
+        self.assertRaises(
+            subprocess.CalledProcessError,
+            self.docker_exec,
+            self.get_container_name('consul', 5),
+            "curl --fail -XPUT -d someval localhost:8500/kv/somekey")
 
-        self.compose_scale('consul', 5)
-        self.instrument(self.settle, 5)
+        # heal netsplit
+        print('healing netsplit')
+        self.docker_exec(self.get_container_name('consul', 3),
+                         'ifconfig eth0 up')
+        self.docker_exec(self.get_container_name('consul', 4),
+                         'ifconfig eth0 up')
+        self.docker_exec(self.get_container_name('consul', 5),
+                         'ifconfig eth0 up')
         self.instrument(self.converge, 5)
-        val = self.consul.kv.get("test_no_quorum_no_consistent_reads",
-                                 consistency='consistent')
+        val = self.consul.kv.get(key, consistency='consistent')
         self.assertIsNotNone(val[1])
 
-
-    # TODO: probably needs tooling to netsplit the containers
-    # def test_majority_writes_win(self):
-    #     """
-    #     Given a healed quorum, make sure majority writes win.
-    #     """
-    #     pass
 
 
 if __name__ == "__main__":
