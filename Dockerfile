@@ -29,19 +29,18 @@ RUN export CONSUL_UI_CHECKSUM=52b1bb09b38eec522f6ecc0b9bf686745bbdc9d845be02bd37
     && rm /tmp/${archive}
 
 # Add Containerpilot and set its configuration
-ENV CONTAINERPILOT_VERSION 2.7.0
-ENV CONTAINERPILOT file:///etc/containerpilot.json
+ENV CONTAINERPILOT_VER 3.0.0-RC1
+ENV CONTAINERPILOT /etc/containerpilot.json5
 
-RUN export CONTAINERPILOT_CHECKSUM=687f7d83e031be7f497ffa94b234251270aee75b \
-    && export archive=containerpilot-${CONTAINERPILOT_VERSION}.tar.gz \
-    && curl -Lso /tmp/${archive} \
-         "https://github.com/joyent/containerpilot/releases/download/${CONTAINERPILOT_VERSION}/${archive}" \
-    && echo "${CONTAINERPILOT_CHECKSUM}  /tmp/${archive}" | sha1sum -c \
-    && tar zxf /tmp/${archive} -C /usr/local/bin \
-    && rm /tmp/${archive}
+RUN export CONTAINERPILOT_CHECKSUM=f67929d1c8567d31772085fc252338091a5f795c \
+    && curl -Lso /tmp/containerpilot.tar.gz \
+         "https://github.com/joyent/containerpilot/releases/download/${CONTAINERPILOT_VER}/containerpilot-${CONTAINERPILOT_VER}.tar.gz" \
+    && echo "${CONTAINERPILOT_CHECKSUM}  /tmp/containerpilot.tar.gz" | sha1sum -c \
+    && tar zxf /tmp/containerpilot.tar.gz -C /usr/local/bin \
+    && rm /tmp/containerpilot.tar.gz
 
 # configuration files and bootstrap scripts
-COPY etc/containerpilot.json etc/
+COPY etc/containerpilot.json5 etc/
 COPY etc/consul.json etc/consul/
 COPY bin/* /usr/local/bin/
 

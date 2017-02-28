@@ -17,7 +17,3 @@ services:
       - CONSUL=consul
     command: >
       /usr/local/bin/containerpilot
-      /bin/consul agent -server
-        -bootstrap-expect 3
-        -config-dir=/etc/consul
-        -ui-dir /ui
