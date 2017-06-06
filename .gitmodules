@@ -1,3 +1,6 @@
 [submodule "test/testing"]
 	path = test/testing
 	url = https://github.com/autopilotpattern/testing.git
+[submodule "test/triton-docker-cli"]
+	path = test/triton-docker-cli
+	url = https://github.com/joyent/triton-docker-cli
