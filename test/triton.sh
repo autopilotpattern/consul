@@ -111,25 +111,20 @@ heal() {
 
 run() {
     echo
-    echo '------------------------------------------------'
-    echo 'cleaning up previous test run'
-    echo '------------------------------------------------'
+    echo '* cleaning up previous test run'
+    echo
     triton-compose -p "$project" -f "$manifest" stop
     triton-compose -p "$project" -f "$manifest" rm -f
 
     echo
-    echo '------------------------------------------------'
-    echo 'standing up initial test targets'
-    echo '------------------------------------------------'
+    echo '* standing up initial test targets'
     echo
     triton-compose -p "$project" -f "$manifest" up -d
 }
 
 teardown() {
     echo
-    echo '------------------------------------------------'
-    echo 'tearing down containers'
-    echo '------------------------------------------------'
+    echo '* tearing down containers'
     echo
     triton-compose -p "$project" -f "$manifest" stop
     triton-compose -p "$project" -f "$manifest" rm -f
@@ -138,9 +133,7 @@ teardown() {
 scale() {
     count="$1"
     echo
-    echo '------------------------------------------------'
-    echo 'scaling up cluster'
-    echo '------------------------------------------------'
+    echo '* scaling up cluster'
     echo
     triton-compose -p "$project" -f "$manifest" scale consul="$count"
 }
@@ -176,7 +169,6 @@ test-rejoin-raft() {
     echo '------------------------------------------------'
     echo "executing rejoin-raft test with $count nodes"
     echo '------------------------------------------------'
-    echo
     run
     scale "$count"
     wait_for_containers "$count"
