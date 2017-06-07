@@ -220,7 +220,7 @@ test-graceful-leave() {
     fi
 
     echo '* checking stale read'
-    stale=$(curl --fail -s "http://${consul_ip}:8500/v1/kv/test_grace?stale" | json -a Value)
+    stale=$(curl -s "http://${consul_ip}:8500/v1/kv/test_grace?stale" | json -a Value)
     # this value is "hello" base64 encoded
     if [[ "$stale" != "aGVsbG8=" ]]; then
         fail "got '${stale}' back from query; could not get stale key after 3 nodes gracefully exit"
@@ -237,7 +237,56 @@ test-quorum-consistency() {
     wait_for_containers 5
     wait_for_cluster 5
 
+    echo
+    echo '* writing key'
+    consul_ip=$(triton ip "${project}_consul_1")
+    curl --fail -s -o /dev/null -XPUT --data "hello" \
+         "http://${consul_ip}:8500/v1/kv/test_quorum"
 
+    echo
+    echo '* netsplitting 3 nodes of cluster'
+    netsplit "consul_3"
+    netsplit "consul_4"
+    netsplit "consul_5"
+
+    echo
+    echo '* checking consistent read'
+    consistent=$(curl -s "http://${consul_ip}:8500/v1/kv/test_quorum?consistent")
+    if [[ "$consistent" != "No cluster leader" ]]; then
+       fail "got '${consistent}' back from query; should not have cluster leader after 3 nodes"
+    fi
+
+    echo
+    echo '* checking write to isolated node'
+    set +e
+    docker exec -it "${project}_consul_1" \
+           curl --fail -XPUT -d someval localhost:8500/kv/somekey
+    result=$?
+    set -e
+    if [ "$result" -eq 0 ]; then
+        fail 'was able to write to isolated node'
+    fi
+
+    echo '* checking stale read'
+    stale=$(curl -s "http://${consul_ip}:8500/v1/kv/test_quorum?stale" | json -a Value)
+    # this value is "hello" base64 encoded
+    if [[ "$stale" != "aGVsbG8=" ]]; then
+        fail "got '${stale}' back from query; could not get stale key after 3 nodes gracefully exit"
+    fi
+
+    echo
+    echo '* healing netsplit'
+    heal "consul_3"
+    heal "consul_4"
+    heal "consul_5"
+    wait_for_cluster 5
+
+    echo '* checking consistent read'
+    consistent=$(curl -s "http://${consul_ip}:8500/v1/kv/test_quorum?consistent" | json -a Value)
+    # this value is "hello" base64 encoded
+    if [[ "$consistent" != "aGVsbG8=" ]]; then
+        fail "got '${consistent}' back from query; could not get consistent key after recovery"
+    fi
 }
 
 # --------------------------------------------------------------------
@@ -247,4 +296,4 @@ profile
 test-rejoin-raft 3
 test-rejoin-raft 5
 test-graceful-leave
-#test-quorum-consistency
+test-quorum-consistency
