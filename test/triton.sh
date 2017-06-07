@@ -99,6 +99,16 @@ restart() {
     triton-docker restart "$node"
 }
 
+write_key() {
+    local inst key val consul_ip
+    inst="$1"
+    key="$2"
+    val="$3"
+    consul_ip=$(triton ip "${project}_${inst}")
+    curl -s -XPUT -d"${val}" "http://${consul_ip}:8500/v1/key/${key}"
+}
+
+
 netsplit() {
     echo "netsplitting ${project}_$1"
     triton-docker exec "${project}_$1" ifconfig eth0 down
@@ -180,11 +190,54 @@ test-rejoin-raft() {
 }
 
 test-graceful-leave() {
-    echo 'TODO'
+    echo
+    echo '------------------------------------------------'
+    echo "executing graceful-leave test with 5 nodes"
+    echo '------------------------------------------------'
+    run
+    scale 5
+    wait_for_containers 5
+    wait_for_cluster 5
+
+    echo
+    echo '* writing key'
+    consul_ip=$(triton ip "${project}_consul_1")
+    curl --fail -s -o /dev/null -XPUT --data "hello" \
+         "http://${consul_ip}:8500/v1/kv/test_grace"
+
+    echo
+    echo '* gracefully stopping 3 nodes of cluster'
+    triton-docker stop "${project}_consul_3"
+    triton-docker stop "${project}_consul_4"
+    triton-docker stop "${project}_consul_5"
+    wait_for_containers 2
+
+    echo
+    echo '* checking consistent read'
+    consistent=$(curl -s "http://${consul_ip}:8500/v1/kv/test_grace?consistent")
+    if [[ "$consistent" != "No cluster leader" ]]; then
+       fail "got '${consistent}' back from query; should not have cluster leader after 3 nodes"
+    fi
+
+    echo '* checking stale read'
+    stale=$(curl --fail -s "http://${consul_ip}:8500/v1/kv/test_grace?stale" | json -a Value)
+    # this value is "hello" base64 encoded
+    if [[ "$stale" != "aGVsbG8=" ]]; then
+        fail "got '${stale}' back from query; could not get stale key after 3 nodes gracefully exit"
+    fi
 }
 
 test-quorum-consistency() {
-    echo 'TODO'
+    echo
+    echo '------------------------------------------------'
+    echo "executing quorum-consistency test with 5 nodes"
+    echo '------------------------------------------------'
+    run
+    scale 5
+    wait_for_containers 5
+    wait_for_cluster 5
+
+
 }
 
 # --------------------------------------------------------------------
@@ -193,5 +246,5 @@ test-quorum-consistency() {
 profile
 test-rejoin-raft 3
 test-rejoin-raft 5
-#test-graceful-leave 5
-#test-quorum-consistency 5
+test-graceful-leave
+#test-quorum-consistency
