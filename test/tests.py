@@ -126,7 +126,9 @@ class ConsulStackFiveNodeTest(ConsulStackTest):
         self.docker('stop', self.get_container_name('consul', 4))
         self.docker('stop', self.get_container_name('consul', 5))
         self.instrument(self.settle, 2)
-        val = self.consul.kv.get(key, consistency='consistent')
+        self.assertRaises(pyconsul.base.ConsulException,
+                          self.consul.kv.get, key, consistency='consistent')
+        val = self.consul.kv.get(key, consistency='stale')
         self.assertIsNotNone(val[1])
 
     def test_quorum_consistency(self):

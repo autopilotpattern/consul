@@ -1,0 +1,38 @@
+{
+  consul: "127.0.0.1:8500",
+  jobs: [
+    {
+      name: "preStart",
+      exec: ["/usr/local/bin/consul-manage", "preStart"],
+    },
+    {
+      name: "consul",
+      port: 8500,
+      {{ if .CONSUL_DEV }}exec: [
+        "/bin/consul", "agent", "-dev",
+        "-config-dir=/etc/consul"],
+      {{ else }}exec: [
+        "/bin/consul", "agent", "-server",
+        "-bootstrap-expect", "3",
+        "-config-dir=/etc/consul",
+        "-ui-dir", "/ui"],{{ end }}
+      when: {
+        source: "preStart",
+        once: "exitSuccess"
+      },
+      health:{
+        exec: ["/usr/local/bin/consul-manage", "health"],
+        interval: 10,
+        ttl: 25
+      }
+    },
+    {
+      name: "preStop",
+      exec: ["consul", "leave"],
+      when: {
+        source: "preStop",
+        once: "stopping"
+      }
+    }
+  ]
+}
