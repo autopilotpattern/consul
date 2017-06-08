@@ -96,7 +96,7 @@ Consul supports TLS encryption for RPC and symmetric pre-shared key encryption f
 
 The `tests/` directory includes integration tests for both the Triton and Compose example stacks described above. Build the test runner by making sure you've pulled down the submodule with `git submodule update --init` and then `make build/tester`.
 
-Running `make test/triton` will run the tests in a container locally but targeting Triton Cloud. To run those tests you'll need a Triton Cloud account with your Triton command line profile set up. The test rig will use the value of the `TRITON_PROFILE` environment variable to determine what data center to target.
+Running `make test/triton` will run the tests in a container locally but targeting Triton Cloud. To run those tests you'll need a Triton Cloud account with your Triton command line profile set up. The test rig will use the value of the `TRITON_PROFILE` environment variable to determine what data center to target. The tests use your own credentials mounted from your Docker host (your laptop, for example), so if you have a passphrase on your ssh key you'll need to add `-it` to the arguments of the `test/triton` Make target.
 
 ## Credit where it's due
 
