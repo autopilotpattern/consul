@@ -99,16 +99,6 @@ restart() {
     triton-docker restart "$node"
 }
 
-write_key() {
-    local inst key val consul_ip
-    inst="$1"
-    key="$2"
-    val="$3"
-    consul_ip=$(triton ip "${project}_${inst}")
-    curl -s -XPUT -d"${val}" "http://${consul_ip}:8500/v1/key/${key}"
-}
-
-
 netsplit() {
     echo "netsplitting ${project}_$1"
     triton-docker exec "${project}_$1" ifconfig eth0 down
@@ -215,7 +205,7 @@ test-graceful-leave() {
     echo
     echo '* checking consistent read'
     consistent=$(curl -s "http://${consul_ip}:8500/v1/kv/test_grace?consistent")
-    if [[ "$consistent" != "No cluster leader" ]]; then
+    if [[ "$consistent" == "aGVsbG8=" ]]; then
        fail "got '${consistent}' back from query; should not have cluster leader after 3 nodes"
     fi
 
@@ -252,7 +242,7 @@ test-quorum-consistency() {
     echo
     echo '* checking consistent read'
     consistent=$(curl -s "http://${consul_ip}:8500/v1/kv/test_quorum?consistent")
-    if [[ "$consistent" != "No cluster leader" ]]; then
+    if [[ "$consistent" == "aGVsbG8=" ]]; then
        fail "got '${consistent}' back from query; should not have cluster leader after 3 nodes"
     fi
 
