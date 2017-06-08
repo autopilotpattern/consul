@@ -53,7 +53,8 @@ wait_for_containers() {
     i=0
     echo "waiting for $count Consul containers to be Up..."
     while [ $i -lt "$timeout" ]; do
-        got=$(triton-compose -p "$project" -f "$manifest" ps consul | grep -c "Up")
+        got=$(triton-compose -p "$project" -f "$manifest" ps consul)
+        got=$(echo "$got" | grep -c "Up")
         if [ "$got" -eq "$count" ]; then
             echo "$count instances reported Up in <= $i seconds"
             return
@@ -76,9 +77,11 @@ wait_for_cluster() {
     echo "waiting for raft w/ $count instances to converge..."
     consul_ip=$(triton ip "${project}_consul_1")
     while [ $i -lt "$timeout" ]; do
-        leader=$(curl -s "http://${consul_ip}:8500/v1/status/leader" | json)
+        leader=$(curl -s "http://${consul_ip}:8500/v1/status/leader")
+        leader=$(echo "$leader" | json)
         if [[ "$leader" != "[]" ]]; then
-            peers=$(curl -s "http://${consul_ip}:8500/v1/status/peers" | json -a)
+            peers=$(curl -s "http://${consul_ip}:8500/v1/status/peers")
+            peers=$(echo "$peers" | json -a)
             peer_count=$(echo "$peers" | wc -l | tr -d ' ')
             if [ "$peer_count" -eq "$count" ]; then
                 echo "$peers" | grep -q "$leader"
@@ -210,7 +213,8 @@ test-graceful-leave() {
     fi
 
     echo '* checking stale read'
-    stale=$(curl -s "http://${consul_ip}:8500/v1/kv/test_grace?stale" | json -a Value)
+    stale=$(curl -s "http://${consul_ip}:8500/v1/kv/test_grace?stale")
+    stale=$(echo "$stale" | json -a Value)
     # this value is "hello" base64 encoded
     if [[ "$stale" != "aGVsbG8=" ]]; then
         fail "got '${stale}' back from query; could not get stale key after 3 nodes gracefully exit"
@@ -258,10 +262,11 @@ test-quorum-consistency() {
     fi
 
     echo '* checking stale read'
-    stale=$(curl -s "http://${consul_ip}:8500/v1/kv/test_quorum?stale" | json -a Value)
+    stale=$(curl -s "http://${consul_ip}:8500/v1/kv/test_quorum?stale")
+    stale=$(echo "$stale" | json -a Value)
     # this value is "hello" base64 encoded
     if [[ "$stale" != "aGVsbG8=" ]]; then
-        fail "got '${stale}' back from query; could not get stale key after 3 nodes gracefully exit"
+        fail "got '${stale}' back from query; could not get stale key after 3 nodes netsplit"
     fi
 
     echo
@@ -272,7 +277,8 @@ test-quorum-consistency() {
     wait_for_cluster 5
 
     echo '* checking consistent read'
-    consistent=$(curl -s "http://${consul_ip}:8500/v1/kv/test_quorum?consistent" | json -a Value)
+    consistent=$(curl -s "http://${consul_ip}:8500/v1/kv/test_quorum?consistent")
+    consistent=$(echo "$consistent" | json -a Value)
     # this value is "hello" base64 encoded
     if [[ "$consistent" != "aGVsbG8=" ]]; then
         fail "got '${consistent}' back from query; could not get consistent key after recovery"
