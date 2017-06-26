@@ -30,7 +30,7 @@
       name: "preStop",
       exec: ["consul", "leave"],
       when: {
-        source: "preStop",
+        source: "consul",
         once: "stopping"
       }
     }
