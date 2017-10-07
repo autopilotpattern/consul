@@ -2,10 +2,10 @@
 # we get the examples docker-compose.yml files. Use 'make build/tester'
 # in the makefile at the root of this repo and everything will work
 
-FROM alpine:3.5
+FROM alpine:3.6
 
 RUN apk update \
-    && apk add nodejs python3 openssl bash curl docker
+    && apk add nodejs nodejs-npm python3 openssl bash curl docker
 RUN npm install -g triton json
 
 # the Compose package in the public releases doesn't work on Alpine
