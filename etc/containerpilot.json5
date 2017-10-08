@@ -9,13 +9,15 @@
       name: "consul",
       port: 8500,
       {{ if .CONSUL_DEV }}exec: [
-        "/bin/consul", "agent", "-dev",
+        "/bin/consul", "agent",
+        "-dev",
         "-config-dir=/etc/consul"],
       {{ else }}exec: [
-        "/bin/consul", "agent", "-server",
+        "/bin/consul", "agent",
+        "-server",
         "-bootstrap-expect", "3",
         "-config-dir=/etc/consul",
-        "-ui-dir", "/ui"],{{ end }}
+        "-ui"],{{ end }}
       when: {
         source: "preStart",
         once: "exitSuccess"
