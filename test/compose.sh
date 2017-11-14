@@ -277,4 +277,4 @@ test-quorum-consistency() {
 test-rejoin-raft 3
 test-rejoin-raft 5
 test-graceful-leave
-test-quorum-consistency
+#test-quorum-consistency
