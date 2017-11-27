@@ -265,6 +265,7 @@ test-quorum-consistency() {
     echo '* checking consistent read'
     consistent=$(docker exec -i "${project}_consul_1" \
                         curl -s "http://localhost:8500/v1/kv/test_grace?consistent")
+    consistent=$(echo "$consistent" | json -a Value)
     # this value is "hello" base64 encoded
     if [[ "$consistent" != "aGVsbG8=" ]]; then
         fail "got '${consistent}' back from query; could not get consistent key after recovery"
