@@ -55,23 +55,32 @@ $ docker exec -it consul_consul_3 consul info | grep num_peers
 
 ## Using this in your own composition
 
-The Consul service definition can be dropped into any Docker Compose file. Set the ContainerPilot configuration for each other service to use the `CONSUL` environment variable as its Consul target and populate this with the CNS name. On Triton, you should consider using a Consul agent in the application container as a `coprocess`, and point this agent to the `CONSUL` environment variable. The relevant section of the ContainerPilot configuration might look like this:
+The Consul service definition can be dropped into any Docker Compose file. Set the ContainerPilot configuration for each other service to use the `CONSUL` environment variable as its Consul target and populate this with the CNS name. On Triton, you should consider using a Consul agent within the application container as a `job`, and point this agent to the `CONSUL` environment variable. The relevant section of the ContainerPilot configuration might look like this:
 
-```json
+```json5
 {
-  "consul": "localhost:8500",
-  "coprocesses": [
+  consul: "localhost:8500",
+  jobs: [
     {
-      "command": ["/usr/local/bin/consul", "agent",
-                  "-data-dir=/data",
-                  "-config-dir=/config",
-                  "-rejoin",
-                  "-retry-join", "{{ .CONSUL }}",
-                  "-retry-max", "10",
-                  "-retry-interval", "10s"],
-      "restarts": "unlimited"
-    }]
-  }
+      name: "consul-agent",
+      restarts: "unlimited",
+      exec: [
+        "/usr/bin/consul", "agent",
+          "-data-dir=/data",
+          "-config-dir=/etc/consul",
+          "-log-level=err",
+          "-rejoin",
+          "-retry-join", '{{ .CONSUL | default "consul" }}',
+          "-retry-max", "10",
+          "-retry-interval", "10s",
+      ],
+      health: {
+        exec: "curl -so /dev/null http://localhost:8500",
+        interval: 10,
+        ttl: 25,
+      }
+    }
+  ]
 }
 ```
 
