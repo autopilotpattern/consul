@@ -68,7 +68,7 @@ version: '2.1'
 services:
 
   consul:
-    image: autopilotpattern/consul:${TAG:-latest}
+    image: autopilotpattern/consul:1.0.0r43
     restart: always
     mem_limit: 128m
     ports:
