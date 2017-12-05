@@ -52,14 +52,45 @@ $ docker exec -it consul_consul_3 consul info | grep num_peers
 
 ```
 
-
 ## Using this in your own composition
 
-The Consul service definition can be dropped into any Docker Compose file. Set the ContainerPilot configuration for each other service to use the `CONSUL` environment variable as its Consul target and populate this with the CNS name. On Triton, you should consider using a Consul agent within the application container as a `job`, and point this agent to the `CONSUL` environment variable. The relevant section of the ContainerPilot configuration might look like this:
+There are two ways to run Consul and both come into play when deploying ContainerPilot, a cluster of Consul servers and individual Consul client agents.
+
+### Servers
+
+The Consul container created by this project will allow you to scale your own Consul cluster. You can use this cluster alongside other projects that use Consul and not just ContainerPilot/autopilot projects.
+
+The following Consul service definition can be dropped into any Docker Compose file to run a Consul cluster alongside other application containers.
+
+```yaml
+version: '2.1'
+
+services:
+
+  consul:
+    image: autopilotpattern/consul:${TAG:-latest}
+    restart: always
+    mem_limit: 128m
+    ports:
+      - 8500
+    environment:
+      - CONSUL=consul
+      - LOG_LEVEL=info
+    command: >
+      /usr/local/bin/containerpilot
+```
+
+In our experience, including a Consul cluster within your project's `docker-compose.yml` can help developers understand and test how a service should be discovered and registered within a wider infrastructure context.
+
+### Clients
+
+ContainerPilot utilizes Consul's [HTTP Agent API](https://www.consul.io/api/agent.html) for a handful of endpoints, such as `UpdateTTL`, `CheckRegister`, `ServiceRegister` and `ServiceDeregister`. Connecting ContainerPilot to Consul can be achieved by running Consul as a client to a cluster (mentioned above). It's easy to run this Consul client agent from ContainerPilot itself.
+
+The following snippet demonstrates how to achieve running Consul inside a container and connecting it to ContainerPilot by configuring a `consul-agent` job.
 
 ```json5
 {
-  consul: "localhost:8500",
+  consul: 'localhost:8500',
   jobs: [
     {
       name: "consul-agent",
@@ -67,7 +98,6 @@ The Consul service definition can be dropped into any Docker Compose file. Set t
       exec: [
         "/usr/bin/consul", "agent",
           "-data-dir=/data",
-          "-config-dir=/etc/consul",
           "-log-level=err",
           "-rejoin",
           "-retry-join", '{{ .CONSUL | default "consul" }}',
@@ -83,6 +113,8 @@ The Consul service definition can be dropped into any Docker Compose file. Set t
   ]
 }
 ```
+
+Many application setups in the Autopilot Pattern library include a Consul agent process within each container to handle connecting ContainerPilot itself to a cluster of Consul servers. This helps performance of Consul features at the cost of more clients connected to the cluster.
 
 A more detailed example of a ContainerPilot configuration that uses a Consul agent co-process can be found in [autopilotpattern/nginx](https://github.com/autopilotpattern/nginx).
 
