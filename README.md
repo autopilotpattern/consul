@@ -58,7 +58,7 @@ There are two ways to run Consul and both come into play when deploying Containe
 
 ### Servers
 
-The Consul container created by this project will allow you to scale your own Consul cluster. You can use this cluster alongside other projects that use Consul and not just ContainerPilot/autopilot projects.
+The Consul container created by this project provides a scalable Consul cluster. Use this cluster with any project that requires Consul and not just ContainerPilot/Autopilot applications.
 
 The following Consul service definition can be dropped into any Docker Compose file to run a Consul cluster alongside other application containers.
 
@@ -80,7 +80,7 @@ services:
       /usr/local/bin/containerpilot
 ```
 
-In our experience, including a Consul cluster within your project's `docker-compose.yml` can help developers understand and test how a service should be discovered and registered within a wider infrastructure context.
+In our experience, including a Consul cluster within a project's `docker-compose.yml` can help developers understand and test how a service should be discovered and registered within a wider infrastructure context.
 
 ### Clients
 
