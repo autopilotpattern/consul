@@ -8,6 +8,9 @@ set -eo pipefail
 preStart() {
     _log "Updating consul advertise address"
     sed -i "s/CONTAINERPILOT_CONSUL_IP/${CONTAINERPILOT_CONSUL_IP}/" /etc/consul/consul.hcl
+
+    _log "Updating consul datacenter name"
+    sed -i "s/CONSUL_DATACENTER_NAME/${CONSUL_DATACENTER_NAME:-dc1}/" /etc/consul/consul.hcl
 }
 
 #

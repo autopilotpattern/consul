@@ -15,5 +15,6 @@ services:
         - 8500
     environment:
       - CONSUL=consul
+      - CONSUL_DATACENTER_NAME=dc1
     command: >
       /usr/local/bin/containerpilot
