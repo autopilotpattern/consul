@@ -82,6 +82,10 @@ services:
 
 In our experience, including a Consul cluster within a project's `docker-compose.yml` can help developers understand and test how a service should be discovered and registered within a wider infrastructure context.
 
+#### Environment Variables
+
+- `CONSUL_DATACENTER_NAME`: sets the name of the data center in which the Consul cluster is running.
+
 ### Clients
 
 ContainerPilot utilizes Consul's [HTTP Agent API](https://www.consul.io/api/agent.html) for a handful of endpoints, such as `UpdateTTL`, `CheckRegister`, `ServiceRegister` and `ServiceDeregister`. Connecting ContainerPilot to Consul can be achieved by running Consul as a client to a cluster (mentioned above). It's easy to run this Consul client agent from ContainerPilot itself.
