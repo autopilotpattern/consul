@@ -11,6 +11,11 @@ preStart() {
 
     _log "Updating consul datacenter name"
     sed -i "s/CONSUL_DATACENTER_NAME/${CONSUL_DATACENTER_NAME:-dc1}/" /etc/consul/consul.hcl
+
+    if [ ! -z "$CONSUL_RETRY_JOIN_WAN" ]; then
+        _log "Updating consul retry_join_wan field: retry_join_wan = [${CONSUL_RETRY_JOIN_WAN}]"
+        echo "retry_join_wan = [${CONSUL_RETRY_JOIN_WAN}]" >> /etc/consul/consul.hcl
+    fi
 }
 
 #
