@@ -38,7 +38,7 @@ services:
     environment:
       - CONSUL=consul2
       - CONSUL_DATACENTER_NAME=dc2
-      - CONSUL_RETRY_JOIN_WAN=consul1
+      - CONSUL_RETRY_JOIN_WAN="consul1"
     command: >
       /usr/local/bin/containerpilot
     links:
