@@ -84,7 +84,17 @@ In our experience, including a Consul cluster within a project's `docker-compose
 
 #### Environment Variables
 
-- `CONSUL_DATACENTER_NAME`: sets the name of the data center in which the Consul cluster is running.
+- `CONSUL_DEV`: Enable development mode, allowing a node to self-elect as a cluster leader. Consul flag: [`-dev`](https://www.consul.io/docs/agent/options.html#_dev).
+    - The following errors will occur if `CONSUL_DEV` is omitted and not enough Consul instances are deployed:
+    ```
+    [ERR] agent: failed to sync remote state: No cluster leader
+    [ERR] agent: failed to sync changes: No cluster leader
+    [ERR] agent: Coordinate update error: No cluster leader
+    ```
+- `CONSUL_DATACENTER_NAME`: Explicitly set the name of the data center in which Consul is running. Consul flag: [`-datacenter`](https://www.consul.io/docs/agent/options.html#datacenter).
+    - If this variable is specified it will be used as-is.
+    - If not specified, automatic detection of the datacenter will be attempted. See [issue #23](https://github.com/autopilotpattern/consul/issues/23) for more details.
+    - Consul's default of "dc1" will be used if none of the above apply.
 
 ### Clients
 
