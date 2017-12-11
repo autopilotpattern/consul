@@ -9,10 +9,19 @@ preStart() {
     _log "Updating consul advertise address"
     sed -i "s/CONTAINERPILOT_CONSUL_IP/${CONTAINERPILOT_CONSUL_IP}/" /etc/consul/consul.hcl
 
-    _log "Updating consul datacenter name"
-    sed -i "s/CONSUL_DATACENTER_NAME/${CONSUL_DATACENTER_NAME:-dc1}/" /etc/consul/consul.hcl
+    if [ -n "$CONSUL_DATACENTER_NAME" ]; then
+        _log "Updating consul datacenter name (specified: '${CONSUL_DATACENTER_NAME}' )"
+        sed -i "s/CONSUL_DATACENTER_NAME/${CONSUL_DATACENTER_NAME}/" /etc/consul/consul.hcl
+    elif [ -f "/native/usr/sbin/mdata-get" ]; then
+        DETECTED_DATACENTER_NAME=$(/native/usr/sbin/mdata-get sdc:datacenter_name)
+        _log "Updating consul datacenter name (detected: '${DETECTED_DATACENTER_NAME}')"
+        sed -i "s/CONSUL_DATACENTER_NAME/${DETECTED_DATACENTER_NAME}/" /etc/consul/consul.hcl
+    else
+        _log "Updating consul datacenter name (default: 'dc1')"
+        sed -i "s/CONSUL_DATACENTER_NAME/dc1/" /etc/consul/consul.hcl
+    fi
 
-    if [ ! -z "$CONSUL_RETRY_JOIN_WAN" ]; then
+    if [ -n "$CONSUL_RETRY_JOIN_WAN" ]; then
         _log "Updating consul retry_join_wan field"
         echo "retry_join_wan = [${CONSUL_RETRY_JOIN_WAN}]" >> /etc/consul/consul.hcl
     fi

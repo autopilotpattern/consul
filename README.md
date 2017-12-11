@@ -92,6 +92,9 @@ In our experience, including a Consul cluster within a project's `docker-compose
     [ERR] agent: Coordinate update error: No cluster leader
     ```
 - `CONSUL_DATACENTER_NAME`: Explicitly set the name of the data center in which Consul is running. Consul flag: [`-datacenter`](https://www.consul.io/docs/agent/options.html#datacenter).
+    - If this variable is specified it will be used as-is.
+    - If not specified, automatic detection of the datacenter will be attempted. See [issue #23](https://github.com/autopilotpattern/consul/issues/23) for more details.
+    - Consul's default of "dc1" will be used if none of the above apply.
 - `CONSUL_RETRY_JOIN_WAN`: sets the remote datacenter addresses to join. Must be a valid HCL list (i.e. comma-separated quoted addresses). Consul flag: [`-retry-join-wan`](https://www.consul.io/docs/agent/options.html#retry_join_wan).
     - The following error will occur if `CONSUL_RETRY_JOIN_WAN` is provided but improperly formatted:
     ```
