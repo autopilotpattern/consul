@@ -84,8 +84,15 @@ In our experience, including a Consul cluster within a project's `docker-compose
 
 #### Environment Variables
 
-- `CONSUL_DATACENTER_NAME`: sets the name of the data center in which the Consul cluster is running.
-- `CONSUL_RETRY_JOIN_WAN`: sets the remote datacenter addresses to join. Must be a valid HCL list (i.e. comma-separated quoted addresses). See Consul's [configuration documentation](https://www.consul.io/docs/agent/options.html#retry_join_wan) for more information.
+- `CONSUL_DEV`: Enable development mode, allowing a node to self-elect as a cluster leader. Consul flag: [`-dev`](https://www.consul.io/docs/agent/options.html#_dev).
+    - The following errors will occur if `CONSUL_DEV` is omitted and not enough Consul instances are deployed:
+    ```
+    [ERR] agent: failed to sync remote state: No cluster leader
+    [ERR] agent: failed to sync changes: No cluster leader
+    [ERR] agent: Coordinate update error: No cluster leader
+    ```
+- `CONSUL_DATACENTER_NAME`: Explicitly set the name of the data center in which Consul is running. Consul flag: [`-datacenter`](https://www.consul.io/docs/agent/options.html#datacenter).
+- `CONSUL_RETRY_JOIN_WAN`: sets the remote datacenter addresses to join. Must be a valid HCL list (i.e. comma-separated quoted addresses). Consul flag: [`-retry-join-wan`](https://www.consul.io/docs/agent/options.html#retry_join_wan).
     - The following error will occur if `CONSUL_RETRY_JOIN_WAN` is provided but improperly formatted:
     ```
     ==> Error parsing /etc/consul/consul.hcl: ... unexpected token while parsing list: IDENT

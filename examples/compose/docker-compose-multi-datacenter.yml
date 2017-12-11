@@ -1,0 +1,37 @@
+version: '2.1'
+
+services:
+
+  # Service definition for "nearby" Consul cluster in a fictional datacenter named "dc1" (the 
+  # default datacenter name). Note the `CONSUL` environment variable tells
+  # instances of this service how to find each other and the datacenter is explicitly set to "dc1"
+  consul-dc1:
+    image: autopilotpattern/consul:${TAG:-latest}
+    restart: always
+    mem_limit: 128m
+    ports:
+        - 8500
+    environment:
+      - CONSUL=consul-dc1
+      - CONSUL_DATACENTER_NAME=dc1
+    command: >
+      /usr/local/bin/containerpilot
+
+  # Service definition for "remotely deployed" Consul cluster named "dc2".
+  # Note the `CONSUL` environment variable tells instances of this service how to find each other 
+  # while `CONSUL_RETRY_JOIN_WAN` tells them what hostname to use to find instances in the "dc1" 
+  # datacenter.
+  consul-dc2:
+    image: autopilotpattern/consul:${TAG:-latest}
+    restart: always
+    mem_limit: 128m
+    ports:
+        - 8500
+    environment:
+      - CONSUL=consul-dc2
+      - CONSUL_DATACENTER_NAME=dc2
+      - CONSUL_RETRY_JOIN_WAN="consul-dc1"
+    command: >
+      /usr/local/bin/containerpilot
+    links:
+      - consul-dc1
