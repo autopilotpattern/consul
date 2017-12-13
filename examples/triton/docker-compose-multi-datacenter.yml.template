@@ -5,7 +5,7 @@ services:
   # Service definition for Consul cluster running in us-east-1.
   # Cloned by ../../setup-multi-datacenter.sh once per profile
   consul:
-    image: tjcelaya/consul:56
+    image: autopilotpattern/consul:${TAG:-latest}
     labels:
       - triton.cns.services=consul
     restart: always

@@ -1,13 +1,23 @@
 #!/bin/bash
 set -eo pipefail
 
+updateConfigFromEnvOrDefault() {
+
+    _log "Updating consul $1 field"
+    sed -i "/^$1/d" /etc/consul/consul.hcl
+
+    if [ -n "${!2}" ]; then
+        echo "$1 = \"${!2}\"" >> /etc/consul/consul.hcl
+    else
+        echo "$1 = \"$3\"" >> /etc/consul/consul.hcl
+    fi
+}
+
 #
 # Update the -advertise address based on the interface that ContainerPilot has
 # been told to listen on.
 #
 preStart() {
-    _log "Updating consul advertise address"
-    sed -i "s/CONTAINERPILOT_CONSUL_IP/${CONTAINERPILOT_CONSUL_IP}/" /etc/consul/consul.hcl
 
     if [ -n "$CONSUL_DATACENTER_NAME" ]; then
         _log "Updating consul datacenter name (specified: '${CONSUL_DATACENTER_NAME}' )"
@@ -26,23 +36,33 @@ preStart() {
         sed -i '/^retry_join_wan/d' /etc/consul/consul.hcl
         echo "retry_join_wan = [${CONSUL_RETRY_JOIN_WAN}]" >> /etc/consul/consul.hcl
 
-        IP_ADDRESS=$(hostname -i)
-
-        # the serf_wan_bind field was recently renamed to serf_wan
-        # if this field is not set connections wan joins will be refused
-        sed -i '/^serf_wan/d' /etc/consul/consul.hcl
-        _log "Updating consul serf_wan field"
-        echo "serf_wan = \"${IP_ADDRESS}\"" >> /etc/consul/consul.hcl
-
-        # advertise_addr_wan allows nodes
-        sed -i '/^advertise_addr_wan/d' /etc/consul/consul.hcl
-        _log "Updating consul advertise_addr_wan field"
-        echo "advertise_addr_wan = \"${IP_ADDRESS}\"" >> /etc/consul/consul.hcl
-
         # translate_wan_addrs allows us to reach remote nodes through their advertise_addr_wan
         sed -i '/^translate_wan_addrs/d' /etc/consul/consul.hcl
         _log "Updating consul translate_wan_addrs field"
         echo "translate_wan_addrs = true" >> /etc/consul/consul.hcl
+
+        IP_ADDRESS=$(hostname -i)
+
+        # TODO: the following envs _can_ be set independently or CONSUL_RETRY_JOIN_WAN so they might
+        # need to be moved out of this if clause
+
+        # the serf_lan_bind field was recently renamed to serf_wan
+        # serf_lan tells nodes their address within the LAN
+        updateConfigFromEnvOrDefault 'serf_lan'             'CONSUL_SERF_LAN_BIND'      "$CONTAINERPILOT_CONSUL_IP"
+
+        # advertise_addr tells nodes their private, routeable address
+        updateConfigFromEnvOrDefault 'advertise_addr'       'CONSUL_ADVERTISE_ADDR'     "$CONTAINERPILOT_CONSUL_IP"
+
+        # the serf_wan_bind field was recently renamed to serf_wan
+        # if this field is not set WAN joins will be refused since the bind address will differ
+        # from the address used to reach the node
+        updateConfigFromEnvOrDefault 'serf_wan'             'CONSUL_SERF_WAN_BIND'      "$IP_ADDRESS"
+
+        # advertise_addr_wan tells nodes their public address for WAN communication
+        updateConfigFromEnvOrDefault 'advertise_addr_wan'   'CONSUL_ADVERTISE_ADDR_WAN' "$IP_ADDRESS"
+    else
+        _log "Updating consul bind address"
+        updateConfigFromEnvOrDefault 'bind_addr'            'CONSUL_ADVERTISE_ADDR_WAN' "$CONTAINERPILOT_CONSUL_IP"
     fi
 }
 

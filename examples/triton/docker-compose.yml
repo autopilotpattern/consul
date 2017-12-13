@@ -6,7 +6,7 @@ services:
   # Nodes will use Triton CNS for the service (passed in via the CONSUL
   # env var) to find each other and bootstrap the cluster.
   consul:
-    image: tjcelaya/consul:47
+    image: autopilotpattern/consul:${TAG:-latest}
     labels:
       - triton.cns.services=consul
     restart: always
