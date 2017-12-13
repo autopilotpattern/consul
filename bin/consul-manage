@@ -1,18 +1,6 @@
 #!/bin/bash
 set -eo pipefail
 
-updateConfigFromEnvOrDefault() {
-
-    _log "Updating consul $1 field"
-    sed -i "/^$1/d" /etc/consul/consul.hcl
-
-    if [ -n "${!2}" ]; then
-        echo "$1 = \"${!2}\"" >> /etc/consul/consul.hcl
-    else
-        echo "$1 = \"$3\"" >> /etc/consul/consul.hcl
-    fi
-}
-
 #
 # Update the -advertise address based on the interface that ContainerPilot has
 # been told to listen on.
@@ -31,6 +19,7 @@ preStart() {
         sed -i "s/CONSUL_DATACENTER_NAME/dc1/" /etc/consul/consul.hcl
     fi
 
+
     if [ -n "$CONSUL_RETRY_JOIN_WAN" ]; then
         _log "Updating consul retry_join_wan field"
         sed -i '/^retry_join_wan/d' /etc/consul/consul.hcl
@@ -41,29 +30,36 @@ preStart() {
         _log "Updating consul translate_wan_addrs field"
         echo "translate_wan_addrs = true" >> /etc/consul/consul.hcl
 
-        IP_ADDRESS=$(hostname -i)
-
-        # TODO: the following envs _can_ be set independently or CONSUL_RETRY_JOIN_WAN so they might
-        # need to be moved out of this if clause
-
-        # the serf_lan_bind field was recently renamed to serf_wan
-        # serf_lan tells nodes their address within the LAN
-        updateConfigFromEnvOrDefault 'serf_lan'             'CONSUL_SERF_LAN_BIND'      "$CONTAINERPILOT_CONSUL_IP"
-
-        # advertise_addr tells nodes their private, routeable address
-        updateConfigFromEnvOrDefault 'advertise_addr'       'CONSUL_ADVERTISE_ADDR'     "$CONTAINERPILOT_CONSUL_IP"
-
-        # the serf_wan_bind field was recently renamed to serf_wan
-        # if this field is not set WAN joins will be refused since the bind address will differ
-        # from the address used to reach the node
-        updateConfigFromEnvOrDefault 'serf_wan'             'CONSUL_SERF_WAN_BIND'      "$IP_ADDRESS"
-
-        # advertise_addr_wan tells nodes their public address for WAN communication
-        updateConfigFromEnvOrDefault 'advertise_addr_wan'   'CONSUL_ADVERTISE_ADDR_WAN' "$IP_ADDRESS"
+        # only set bind_addr = 0.0.0.0 if none was specified explicitly with CONSUL_BIND_ADDR
+        if [ -z "CONSUL_BIND_ADDR" ]; then
+            sed -i '/^bind_addr/d' /etc/consul/consul.hcl
+            _log "Updating consul field bind_addr to 0.0.0.0 CONSUL_BIND_ADDR was empty and CONSUL_RETRY_JOIN_WAN was not empty"
+            echo "bind_addr = true" >> /etc/consul/consul.hcl
+        else
+            updateConfigFromEnvOrDefault 'bind_addr' 'CONSUL_BIND_ADDR' "$CONTAINERPILOT_CONSUL_IP"
+        fi
     else
-        _log "Updating consul bind address"
-        updateConfigFromEnvOrDefault 'bind_addr'            'CONSUL_ADVERTISE_ADDR_WAN' "$CONTAINERPILOT_CONSUL_IP"
+        # if no WAN addresses were provided, set the bind_addr to the private address
+        updateConfigFromEnvOrDefault 'bind_addr' 'CONSUL_BIND_ADDR' "$CONTAINERPILOT_CONSUL_IP"
     fi
+
+
+    IP_ADDRESS=$(hostname -i)
+
+    # the serf_lan_bind field was recently renamed to serf_wan
+    # serf_lan tells nodes their address within the LAN
+    updateConfigFromEnvOrDefault 'serf_lan'             'CONSUL_SERF_LAN_BIND'      "$CONTAINERPILOT_CONSUL_IP"
+
+    # the serf_wan_bind field was recently renamed to serf_wan
+    # if this field is not set WAN joins will be refused since the bind address will differ
+    # from the address used to reach the node
+    updateConfigFromEnvOrDefault 'serf_wan'             'CONSUL_SERF_WAN_BIND'      "$IP_ADDRESS"
+
+    # advertise_addr tells nodes their private, routeable address
+    updateConfigFromEnvOrDefault 'advertise_addr'       'CONSUL_ADVERTISE_ADDR'     "$CONTAINERPILOT_CONSUL_IP"
+
+    # advertise_addr_wan tells nodes their public address for WAN communication
+    updateConfigFromEnvOrDefault 'advertise_addr_wan'   'CONSUL_ADVERTISE_ADDR_WAN' "$IP_ADDRESS"
 }
 
 #
@@ -86,6 +82,28 @@ health() {
 
 _log() {
     echo "    $(date -u '+%Y-%m-%d %H:%M:%S') containerpilot: $@"
+}
+
+
+#
+# Defines $1 in the consul configuration as either an env or a default.
+# This basically behaves like ${!name_of_var} and ${var:-default} together
+# but separates the  indirect reference from the default so it's more obvious
+#
+# Check if $2 is the name of a defined environment variable and use ${!2} to
+# reference it indirectly.
+#
+# If it is not defined, use $3 as the value
+#
+updateConfigFromEnvOrDefault() {
+    _log "Updating consul field $1"
+    sed -i "/^$1/d" /etc/consul/consul.hcl
+
+    if [ -n "${!2}" ]; then
+        echo "$1 = \"${!2}\"" >> /etc/consul/consul.hcl
+    else
+        echo "$1 = \"$3\"" >> /etc/consul/consul.hcl
+    fi
 }
 
 # ---------------------------------------------------
