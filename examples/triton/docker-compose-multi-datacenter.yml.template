@@ -1,0 +1,22 @@
+version: '2.1'
+
+services:
+
+  # Service definition for Consul cluster running in us-east-1.
+  # Cloned by ../../setup-multi-datacenter.sh once per profile
+  consul:
+    image: tjcelaya/consul:56
+    labels:
+      - triton.cns.services=consul
+    restart: always
+    mem_limit: 128m
+    ports:
+      - 8300        # Server RPC port
+      - "8302/tcp"  # Serf WAN port
+      - "8302/udp"  # Serf WAN port
+      - 8500
+    env_file:
+      - ENV_FILE_NAME
+    network_mode: bridge
+    command: >
+      /usr/local/bin/containerpilot

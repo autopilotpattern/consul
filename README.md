@@ -52,6 +52,30 @@ $ docker exec -it consul_consul_3 consul info | grep num_peers
 
 ```
 
+### Run it with more than one datacenter!
+
+Follow the same steps as above until you reach `./setup.sh` but execute `./setup-multi-datacenter.sh` instead, providing as arguments Triton profiles which belong to the desired data centers. 
+
+Since interacting with multiple data centers requires switching between Triton profiles it's easier to perform the following steps in separate terminals. It is possible to perform all the steps for a single data center and then change profiles. Additionally, setting `COMPOSE_PROJECT_NAME` to match the profile or data center will help distinguish nodes in Triton Portal and the `triton instance ls` listing.
+
+Execute the following commands, once per data center, from the project root:
+
+```
+$ eval "$(TRITON_PROFILE=<PROFILE> triton env -d)"
+
+$ export COMPOSE_FILE=examples/triton/docker-compose-<PROFILE>.yml
+
+# the following is not strictly necessary but helps to discern between clusters
+$ export COMPOSE_PROJECT_NAME=<PROFILE>
+
+$ docker-compose up -d
+Creating <PROFILE>_consul_1 ... done
+
+$ docker-compose scale consul=3
+```
+
+Note: the `cns.joyent.com` hostnames cannot be resolved from outside the datacenters. Change `cns.joyent.com` to `triton.zone` to access the web UI.
+
 ## Using this in your own composition
 
 There are two ways to run Consul and both come into play when deploying ContainerPilot, a cluster of Consul servers and individual Consul client agents.
@@ -100,6 +124,9 @@ In our experience, including a Consul cluster within a project's `docker-compose
     ```
     ==> Error parsing /etc/consul/consul.hcl: ... unexpected token while parsing list: IDENT
     ```
+    - Gossip over the WAN requires the following ports to be accessible between data centers, make sure that adequate firewall rules have been established for the following ports by default:
+      - `8300`: Server RPC port (TCP)
+      - `8302`: Serf WAN gossip port (TCP + UDP)
 
 ### Clients
 

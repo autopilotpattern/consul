@@ -42,9 +42,11 @@ check() {
     # make sure Docker client is pointed to the same place as the Triton client
     local docker_user=$(docker info 2>&1 | awk -F": " '/SDCAccount:/{print $2}')
     local docker_dc=$(echo $DOCKER_HOST | awk -F"/" '{print $3}' | awk -F'.' '{print $1}')
-    TRITON_USER=$(triton profile get | awk -F": " '/account:/{print $2}')
-    TRITON_DC=$(triton profile get | awk -F"/" '/url:/{print $3}' | awk -F'.' '{print $1}')
+
+    TRITON_USER=$(triton profile get $TRITON_PROFILE | awk -F": " '/account:/{print $2}')
+    TRITON_DC=$(triton profile get $TRITON_PROFILE | awk -F"/" '/url:/{print $3}' | awk -F'.' '{print $1}')
     TRITON_ACCOUNT=$(triton account get | awk -F": " '/id:/{print $2}')
+
     if [ ! "$docker_user" = "$TRITON_USER" ] || [ ! "$docker_dc" = "$TRITON_DC" ]; then
         echo
         tput rev  # reverse
@@ -71,12 +73,12 @@ check() {
     fi
 
     # setup environment file
-    if [ ! -f "_env" ]; then
-        echo '# Consul bootstrap via Triton CNS' >> _env
-        echo CONSUL=consul.svc.${TRITON_ACCOUNT}.${TRITON_DC}.cns.joyent.com >> _env
-        echo >> _env
+    if [ ! -f "examples/triton/_env" ]; then
+        echo '# Consul bootstrap via Triton CNS' >> examples/triton/_env
+        echo CONSUL=consul.svc.${TRITON_ACCOUNT}.${TRITON_DC}.cns.joyent.com >> examples/triton/_env
+        echo >> examples/triton/_env
     else
-        echo 'Existing _env file found, exiting'
+        echo 'Existing _env file found at examples/triton/_env, exiting'
         exit
     fi
 }

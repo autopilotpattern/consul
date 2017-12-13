@@ -23,7 +23,26 @@ preStart() {
 
     if [ -n "$CONSUL_RETRY_JOIN_WAN" ]; then
         _log "Updating consul retry_join_wan field"
+        sed -i '/^retry_join_wan/d' /etc/consul/consul.hcl
         echo "retry_join_wan = [${CONSUL_RETRY_JOIN_WAN}]" >> /etc/consul/consul.hcl
+
+        IP_ADDRESS=$(hostname -i)
+
+        # the serf_wan_bind field was recently renamed to serf_wan
+        # if this field is not set connections wan joins will be refused
+        sed -i '/^serf_wan/d' /etc/consul/consul.hcl
+        _log "Updating consul serf_wan field"
+        echo "serf_wan = \"${IP_ADDRESS}\"" >> /etc/consul/consul.hcl
+
+        # advertise_addr_wan allows nodes
+        sed -i '/^advertise_addr_wan/d' /etc/consul/consul.hcl
+        _log "Updating consul advertise_addr_wan field"
+        echo "advertise_addr_wan = \"${IP_ADDRESS}\"" >> /etc/consul/consul.hcl
+
+        # translate_wan_addrs allows us to reach remote nodes through their advertise_addr_wan
+        sed -i '/^translate_wan_addrs/d' /etc/consul/consul.hcl
+        _log "Updating consul translate_wan_addrs field"
+        echo "translate_wan_addrs = true" >> /etc/consul/consul.hcl
     fi
 }
 
