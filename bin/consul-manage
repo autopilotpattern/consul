@@ -31,12 +31,12 @@ preStart() {
         echo "translate_wan_addrs = true" >> /etc/consul/consul.hcl
 
         # only set bind_addr = 0.0.0.0 if none was specified explicitly with CONSUL_BIND_ADDR
-        if [ -z "CONSUL_BIND_ADDR" ]; then
+        if [ -n "$CONSUL_BIND_ADDR" ]; then
+            updateConfigFromEnvOrDefault 'bind_addr' 'CONSUL_BIND_ADDR' "$CONTAINERPILOT_CONSUL_IP"
+        else
             sed -i '/^bind_addr/d' /etc/consul/consul.hcl
             _log "Updating consul field bind_addr to 0.0.0.0 CONSUL_BIND_ADDR was empty and CONSUL_RETRY_JOIN_WAN was not empty"
             echo "bind_addr = true" >> /etc/consul/consul.hcl
-        else
-            updateConfigFromEnvOrDefault 'bind_addr' 'CONSUL_BIND_ADDR' "$CONTAINERPILOT_CONSUL_IP"
         fi
     else
         # if no WAN addresses were provided, set the bind_addr to the private address
