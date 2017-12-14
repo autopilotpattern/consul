@@ -8,6 +8,7 @@ services:
     image: autopilotpattern/consul:${TAG:-latest}
     labels:
       - triton.cns.services=consul
+      - com.docker.swarm.affinities=["container!=~*consul*"]
     restart: always
     mem_limit: 128m
     ports:
