@@ -43,7 +43,6 @@ preStart() {
         updateConfigFromEnvOrDefault 'bind_addr' 'CONSUL_BIND_ADDR' "$CONTAINERPILOT_CONSUL_IP"
     fi
 
-
     IP_ADDRESS=$(hostname -i)
 
     # the serf_lan_bind field was recently renamed to serf_wan

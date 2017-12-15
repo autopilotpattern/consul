@@ -76,6 +76,35 @@ $ docker-compose scale consul=3
 
 Note: the `cns.joyent.com` hostnames cannot be resolved from outside the datacenters. Change `cns.joyent.com` to `triton.zone` to access the web UI.
 
+## Environment Variables
+
+- `CONSUL_DEV`: Enable development mode, allowing a node to self-elect as a cluster leader. Consul flag: [`-dev`](https://www.consul.io/docs/agent/options.html#_dev).
+    - The following errors will occur if `CONSUL_DEV` is omitted and not enough Consul instances are deployed:
+    ```
+    [ERR] agent: failed to sync remote state: No cluster leader
+    [ERR] agent: failed to sync changes: No cluster leader
+    [ERR] agent: Coordinate update error: No cluster leader
+    ```
+- `CONSUL_DATACENTER_NAME`: Explicitly set the name of the data center in which Consul is running. Consul flag: [`-datacenter`](https://www.consul.io/docs/agent/options.html#datacenter).
+    - If this variable is specified it will be used as-is.
+    - If not specified, automatic detection of the datacenter will be attempted. See [issue #23](https://github.com/autopilotpattern/consul/issues/23) for more details.
+    - Consul's default of "dc1" will be used if none of the above apply.
+
+- `CONSUL_BIND_ADDR`: Explicitly set the corresponding Consul configuration. This value will be set to `0.0.0.0` if not specified and `CONSUL_RETRY_JOIN_WAN` is provided. Be aware of 
+- `CONSUL_SERF_LAN_BIND`: Explicitly set the corresponding Consul configuration. This value will be set to the server's private address automatically if not specified. Consul flag: [`-serf-lan-bind`](https://www.consul.io/docs/agent/options.html#serf_lan_bind).
+- `CONSUL_SERF_WAN_BIND`: Explicitly set the corresponding Consul configuration. This value will be set to the server's public address automatically if not specified. Consul flag: [`-serf-wan-bind`](https://www.consul.io/docs/agent/options.html#serf_wan_bind).
+- `CONSUL_ADVERTISE_ADDR`: Explicitly set the corresponding Consul configuration. This value will be set to the server's private address automatically if not specified. Consul flag: [`-advertise-addr`](https://www.consul.io/docs/agent/options.html#advertise_addr).
+- `CONSUL_ADVERTISE_ADDR_WAN`: Explicitly set the corresponding Consul configuration. This value will be set to the server's public address automatically if not specified. Consul flag: [`-advertise-addr-wan`](https://www.consul.io/docs/agent/options.html#advertise_addr_wan).
+
+- `CONSUL_RETRY_JOIN_WAN`: sets the remote datacenter addresses to join. Must be a valid HCL list (i.e. comma-separated quoted addresses). Consul flag: [`-retry-join-wan`](https://www.consul.io/docs/agent/options.html#retry_join_wan).
+    - The following error will occur if `CONSUL_RETRY_JOIN_WAN` is provided but improperly formatted:
+    ```
+    ==> Error parsing /etc/consul/consul.hcl: ... unexpected token while parsing list: IDENT
+    ```
+    - Gossip over the WAN requires the following ports to be accessible between data centers, make sure that adequate firewall rules have been established for the following ports (this should happen automatically when using docker-compose with Triton):
+      - `8300`: Server RPC port (TCP)
+      - `8302`: Serf WAN gossip port (TCP + UDP)
+
 ## Using this in your own composition
 
 There are two ways to run Consul and both come into play when deploying ContainerPilot, a cluster of Consul servers and individual Consul client agents.
@@ -105,35 +134,6 @@ services:
 ```
 
 In our experience, including a Consul cluster within a project's `docker-compose.yml` can help developers understand and test how a service should be discovered and registered within a wider infrastructure context.
-
-#### Environment Variables
-
-- `CONSUL_DEV`: Enable development mode, allowing a node to self-elect as a cluster leader. Consul flag: [`-dev`](https://www.consul.io/docs/agent/options.html#_dev).
-    - The following errors will occur if `CONSUL_DEV` is omitted and not enough Consul instances are deployed:
-    ```
-    [ERR] agent: failed to sync remote state: No cluster leader
-    [ERR] agent: failed to sync changes: No cluster leader
-    [ERR] agent: Coordinate update error: No cluster leader
-    ```
-- `CONSUL_DATACENTER_NAME`: Explicitly set the name of the data center in which Consul is running. Consul flag: [`-datacenter`](https://www.consul.io/docs/agent/options.html#datacenter).
-    - If this variable is specified it will be used as-is.
-    - If not specified, automatic detection of the datacenter will be attempted. See [issue #23](https://github.com/autopilotpattern/consul/issues/23) for more details.
-    - Consul's default of "dc1" will be used if none of the above apply.
-
-- `CONSUL_BIND_ADDR`: Explicitly set the corresponding Consul configuration. This value will be set to `0.0.0.0` if not specified and `CONSUL_RETRY_JOIN_WAN` is provided. Be aware of 
-- `CONSUL_SERF_LAN_BIND`: Explicitly set the corresponding Consul configuration. This value will be set to the server's private address automatically if not specified. Consul flag: [`-serf-lan-bind`](https://www.consul.io/docs/agent/options.html#serf_lan_bind).
-- `CONSUL_SERF_WAN_BIND`: Explicitly set the corresponding Consul configuration. This value will be set to the server's public address automatically if not specified. Consul flag: [`-serf-wan-bind`](https://www.consul.io/docs/agent/options.html#serf_wan_bind).
-- `CONSUL_ADVERTISE_ADDR`: Explicitly set the corresponding Consul configuration. This value will be set to the server's private address automatically if not specified. Consul flag: [`-advertise-addr`](https://www.consul.io/docs/agent/options.html#advertise_addr).
-- `CONSUL_ADVERTISE_ADDR_WAN`: Explicitly set the corresponding Consul configuration. This value will be set to the server's public address automatically if not specified. Consul flag: [`-advertise-addr-wan`](https://www.consul.io/docs/agent/options.html#advertise_addr_wan).
-
-- `CONSUL_RETRY_JOIN_WAN`: sets the remote datacenter addresses to join. Must be a valid HCL list (i.e. comma-separated quoted addresses). Consul flag: [`-retry-join-wan`](https://www.consul.io/docs/agent/options.html#retry_join_wan).
-    - The following error will occur if `CONSUL_RETRY_JOIN_WAN` is provided but improperly formatted:
-    ```
-    ==> Error parsing /etc/consul/consul.hcl: ... unexpected token while parsing list: IDENT
-    ```
-    - Gossip over the WAN requires the following ports to be accessible between data centers, make sure that adequate firewall rules have been established for the following ports (this should happen automatically when using docker-compose with Triton):
-      - `8300`: Server RPC port (TCP)
-      - `8302`: Serf WAN gossip port (TCP + UDP)
 
 ### Clients
 
