@@ -1,4 +1,5 @@
 bind_addr = "CONTAINERPILOT_CONSUL_IP"
+datacenter = "CONSUL_DATACENTER_NAME"
 data_dir = "/data"
 client_addr = "0.0.0.0"
 ports {
