@@ -19,7 +19,6 @@ preStart() {
         sed -i "s/CONSUL_DATACENTER_NAME/dc1/" /etc/consul/consul.hcl
     fi
 
-
     if [ -n "$CONSUL_RETRY_JOIN_WAN" ]; then
         _log "Updating consul retry_join_wan field"
         sed -i '/^retry_join_wan/d' /etc/consul/consul.hcl
