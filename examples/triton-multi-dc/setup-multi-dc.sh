@@ -53,7 +53,7 @@ generate_env() {
 
     local triton_user=$(triton profile get $triton_profile | awk -F": " '/account:/{print $2}')
     local triton_dc=$(triton profile get $triton_profile | awk -F"/" '/url:/{print $3}' | awk -F'.' '{print $1}')
-    local triton_account=$(triton account get | awk -F": " '/id:/{print $2}')
+    local triton_account=$(TRITON_PROFILE=$triton_profile triton account get | awk -F": " '/id:/{print $2}')
 
     if [ ! "$docker_user" = "$triton_user" ] || [ ! "$docker_dc" = "$triton_dc" ]; then
         echo
@@ -124,6 +124,8 @@ if [ ! -f "docker-compose-multi-dc.yml.template" ]; then
     echo "Multi-datacenter docker-compose.yml template is missing!"
     exit 5
 fi
+
+echo "profiles: $@"
 
 # invoke ./setup.sh once per profile
 for profile in "$@"
