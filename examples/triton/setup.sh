@@ -73,12 +73,12 @@ check() {
     fi
 
     # setup environment file
-    if [ ! -f "examples/triton/_env" ]; then
-        echo '# Consul bootstrap via Triton CNS' >> examples/triton/_env
-        echo CONSUL=consul.svc.${TRITON_ACCOUNT}.${TRITON_DC}.cns.joyent.com >> examples/triton/_env
-        echo >> examples/triton/_env
+    if [ ! -f "_env" ]; then
+        echo '# Consul bootstrap via Triton CNS' >> _env
+        echo CONSUL=consul.svc.${TRITON_ACCOUNT}.${TRITON_DC}.cns.joyent.com >> _env
+        echo >> _env
     else
-        echo 'Existing _env file found at examples/triton/_env, exiting'
+        echo 'Existing _env file found at _env, exiting'
         exit
     fi
 }

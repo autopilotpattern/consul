@@ -57,9 +57,8 @@ INITIAL_PROFILE=$(triton profile get | awk '/name:/{print $2}')
 for profile in "$@"
 do
     echo "Temporarily switching profile: $profile"
-    triton profile set $profile
-    eval "$(triton env -d)"
-    ./setup.sh
+    eval "TRITON_PROFILE=$profile $(triton env -d)"
+    ./setup-single-dc.sh
 
     unset CONSUL
     source _env
@@ -92,12 +91,4 @@ do
     written+=("_env-$profile")
 done
 
-echo "Wrote: $written"
-
-echo "Clearing triton env"
-
-eval "$(triton env -u)"
-triton profile set "$INITIAL_PROFILE"
-
-echo "Restored profile: $INITIAL_PROFILE"
-echo "You might want to run eval \"\$(triton env) again"
+echo "Wrote: ${written[@]}"
