@@ -46,7 +46,7 @@ do
 done
 
 # check that the docker-compose.yml template is in the right place
-if [ ! -f "docker-compose-multi-datacenter.yml.template" ]; then
+if [ ! -f "docker-compose-multi-dc.yml.template" ]; then
     echo "Multi-datacenter docker-compose.yml template is missing!"
     exit 5
 fi
@@ -68,7 +68,7 @@ do
 
     mv _env "_env-$profile"
 
-    cp docker-compose-multi-datacenter.yml.template \
+    cp docker-compose-multi-dc.yml.template \
        "docker-compose-$profile.yml"
 
     sed -i '' "s/ENV_FILE_NAME/_env-$profile/" "docker-compose-$profile.yml"
@@ -84,7 +84,7 @@ do
     echo '# Consul multi-DC bootstrap via Triton CNS' >> _env-$profile
     echo "CONSUL_RETRY_JOIN_WAN=$(IFS=,; echo "${consul_hostnames[*]}")" >> _env-$profile
 
-    cp docker-compose-multi-datacenter.yml.template \
+    cp docker-compose-multi-dc.yml.template \
        "docker-compose-$profile.yml"
 
     sed -i '' "s/ENV_FILE_NAME/_env-$profile/" "docker-compose-$profile.yml"
