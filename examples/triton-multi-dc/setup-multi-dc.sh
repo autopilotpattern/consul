@@ -22,9 +22,11 @@ fi
 # Top-level commands
 
 #
-# Check for correct configuration and setup _env file named $1
+# Check for triton profile $1 and output _env file named $2
 #
 generate_env() {
+    local triton_profile=$1
+    local output_file=$2
 
     command -v docker >/dev/null 2>&1 || {
         echo
@@ -49,11 +51,11 @@ generate_env() {
     local docker_user=$(docker info 2>&1 | awk -F": " '/SDCAccount:/{print $2}')
     local docker_dc=$(echo $DOCKER_HOST | awk -F"/" '{print $3}' | awk -F'.' '{print $1}')
 
-    local TRITON_USER=$(triton profile get $TRITON_PROFILE | awk -F": " '/account:/{print $2}')
-    local TRITON_DC=$(triton profile get $TRITON_PROFILE | awk -F"/" '/url:/{print $3}' | awk -F'.' '{print $1}')
-    local TRITON_ACCOUNT=$(triton account get | awk -F": " '/id:/{print $2}')
+    local triton_user=$(triton profile get $triton_profile | awk -F": " '/account:/{print $2}')
+    local triton_dc=$(triton profile get $triton_profile | awk -F"/" '/url:/{print $3}' | awk -F'.' '{print $1}')
+    local triton_account=$(triton account get | awk -F": " '/id:/{print $2}')
 
-    if [ ! "$docker_user" = "$TRITON_USER" ] || [ ! "$docker_dc" = "$TRITON_DC" ]; then
+    if [ ! "$docker_user" = "$triton_user" ] || [ ! "$docker_dc" = "$triton_dc" ]; then
         echo
         tput rev  # reverse
         tput bold # bold
@@ -61,9 +63,9 @@ generate_env() {
         tput sgr0 # clear
         echo
         echo "Docker user: ${docker_user}"
-        echo "Triton user: ${TRITON_USER}"
+        echo "Triton user: ${triton_user}"
         echo "Docker data center: ${docker_dc}"
-        echo "Triton data center: ${TRITON_DC}"
+        echo "Triton data center: ${triton_dc}"
         exit 1
     fi
 
@@ -79,10 +81,10 @@ generate_env() {
     fi
 
     # setup environment file
-    if [ ! -f "$1" ]; then
-        echo '# Consul bootstrap via Triton CNS' >> $1
-        echo CONSUL=consul.svc.${TRITON_ACCOUNT}.${TRITON_DC}.cns.joyent.com >> $1
-        echo >> $1
+    if [ ! -f "$output_file" ]; then
+        echo '# Consul bootstrap via Triton CNS' >> $output_file
+        echo CONSUL=consul.svc.${triton_account}.${triton_dc}.cns.joyent.com >> $output_file
+        echo >> $output_file
     else
         echo "Existing _env file found at $1, exiting"
         exit
@@ -128,8 +130,7 @@ for profile in "$@"
 do
     echo "Temporarily switching profile: $profile"
     eval "$(TRITON_PROFILE=$profile triton env -d)"
-
-    TRITON_PROFILE=$profile generate_env("_env-$profile")
+    generate_env $profile "_env-$profile"
 
     unset CONSUL
     source "_env-$profile"
