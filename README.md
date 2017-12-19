@@ -90,7 +90,7 @@ Note: the `cns.joyent.com` hostnames cannot be resolved from outside the datacen
     - If not specified, automatic detection of the datacenter will be attempted. See [issue #23](https://github.com/autopilotpattern/consul/issues/23) for more details.
     - Consul's default of "dc1" will be used if none of the above apply.
 
-- `CONSUL_BIND_ADDR`: Explicitly set the corresponding Consul configuration. This value will be set to `0.0.0.0` if not specified and `CONSUL_RETRY_JOIN_WAN` is provided. Be aware of 
+- `CONSUL_BIND_ADDR`: Explicitly set the corresponding Consul configuration. This value will be set to `0.0.0.0` if `CONSUL_BIND_ADDR` is not specified and `CONSUL_RETRY_JOIN_WAN` is provided. Be aware of the security implications of binding the server to a public address and consider setting up encryption or using a VPN to isolate WAN traffic from the public internet.
 - `CONSUL_SERF_LAN_BIND`: Explicitly set the corresponding Consul configuration. This value will be set to the server's private address automatically if not specified. Consul flag: [`-serf-lan-bind`](https://www.consul.io/docs/agent/options.html#serf_lan_bind).
 - `CONSUL_SERF_WAN_BIND`: Explicitly set the corresponding Consul configuration. This value will be set to the server's public address automatically if not specified. Consul flag: [`-serf-wan-bind`](https://www.consul.io/docs/agent/options.html#serf_wan_bind).
 - `CONSUL_ADVERTISE_ADDR`: Explicitly set the corresponding Consul configuration. This value will be set to the server's private address automatically if not specified. Consul flag: [`-advertise-addr`](https://www.consul.io/docs/agent/options.html#advertise_addr).

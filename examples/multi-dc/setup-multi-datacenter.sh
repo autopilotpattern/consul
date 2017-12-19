@@ -34,19 +34,19 @@ do
         exit 2
     fi
 
-    if [ -f "examples/triton/_env-$profile" ]; then
-        echo "Existing env file found, exiting: examples/triton/_env-$profile"
+    if [ -f "_env-$profile" ]; then
+        echo "Existing env file found, exiting: _env-$profile"
         exit 3
     fi
 
-    if [ -f "examples/triton/docker-compose-$profile.yml" ]; then
-        echo "Existing docker-compose file found, exiting: examples/triton/docker-compose-$profile.yml"
+    if [ -f "docker-compose-$profile.yml" ]; then
+        echo "Existing docker-compose file found, exiting: docker-compose-$profile.yml"
         exit 4
     fi
 done
 
 # check that the docker-compose.yml template is in the right place
-if [ ! -f "examples/triton/docker-compose-multi-datacenter.yml.template" ]; then
+if [ ! -f "docker-compose-multi-datacenter.yml.template" ]; then
     echo "Multi-datacenter docker-compose.yml template is missing!"
     exit 5
 fi
@@ -62,16 +62,16 @@ do
     ./setup.sh
 
     unset CONSUL
-    source examples/triton/_env 
+    source _env
 
     consul_hostnames+=("\"${CONSUL//cns.joyent.com/triton.zone}\"")
 
-    mv examples/triton/_env "examples/triton/_env-$profile"
+    mv _env "_env-$profile"
 
-    cp examples/triton/docker-compose-multi-datacenter.yml.template \
-       "examples/triton/docker-compose-$profile.yml"
+    cp docker-compose-multi-datacenter.yml.template \
+       "docker-compose-$profile.yml"
 
-    sed -i '' "s/ENV_FILE_NAME/_env-$profile/" "examples/triton/docker-compose-$profile.yml"
+    sed -i '' "s/ENV_FILE_NAME/_env-$profile/" "docker-compose-$profile.yml"
 
     written+=("_env-$profile")
 done
@@ -81,13 +81,13 @@ done
 for profile in "$@"
 do
     # add the CONSUL_RETRY_JOIN_WAN addresses to each _env
-    echo '# Consul multi-DC bootstrap via Triton CNS' >> examples/triton/_env-$profile
-    echo "CONSUL_RETRY_JOIN_WAN=$(IFS=,; echo "${consul_hostnames[*]}")" >> examples/triton/_env-$profile
+    echo '# Consul multi-DC bootstrap via Triton CNS' >> _env-$profile
+    echo "CONSUL_RETRY_JOIN_WAN=$(IFS=,; echo "${consul_hostnames[*]}")" >> _env-$profile
 
-    cp examples/triton/docker-compose-multi-datacenter.yml.template \
-       "examples/triton/docker-compose-$profile.yml"
+    cp docker-compose-multi-datacenter.yml.template \
+       "docker-compose-$profile.yml"
 
-    sed -i '' "s/ENV_FILE_NAME/_env-$profile/" "examples/triton/docker-compose-$profile.yml"
+    sed -i '' "s/ENV_FILE_NAME/_env-$profile/" "docker-compose-$profile.yml"
 
     written+=("_env-$profile")
 done
