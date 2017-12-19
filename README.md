@@ -54,7 +54,7 @@ $ docker exec -it consul_consul_3 consul info | grep num_peers
 
 ### Run it with more than one datacenter!
 
-Follow the same steps as above until you reach `./setup.sh` but execute `./setup-multi-datacenter.sh` instead, providing as arguments Triton profiles which belong to the desired data centers. 
+Within the `examples/triton-multi-dc` directory, execute `./setup-multi-dc.sh`, providing as arguments Triton profiles which belong to the desired data centers. 
 
 Since interacting with multiple data centers requires switching between Triton profiles it's easier to perform the following steps in separate terminals. It is possible to perform all the steps for a single data center and then change profiles. Additionally, setting `COMPOSE_PROJECT_NAME` to match the profile or data center will help distinguish nodes in Triton Portal and the `triton instance ls` listing.
 
