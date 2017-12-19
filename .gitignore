@@ -1,2 +1,2 @@
 _env*
-examples/triton/docker-compose-*.yml
+examples/triton-multi-dc/docker-compose-*.yml

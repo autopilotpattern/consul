@@ -84,8 +84,8 @@ test/triton/dev:
 
 # ------------------------------------------------
 # Multi-datacenter usage
-clean/multi-dc:
-	rm -rf examples/multi-dc/_env* examples/multi-dc/docker-compose-*.yml
+clean/triton-multi-dc:
+	rm -rf examples/triton-multi-dc/_env* examples/triton-multi-dc/docker-compose-*.yml
 
 
 ## Print environment for build debugging
