@@ -54,18 +54,19 @@ $ docker exec -it consul_consul_3 consul info | grep num_peers
 
 ### Run it with more than one datacenter!
 
-Within the `examples/triton-multi-dc` directory, execute `./setup-multi-dc.sh`, providing as arguments Triton profiles which belong to the desired data centers. 
+Within the `examples/triton-multi-dc` directory, execute `./setup-multi-dc.sh`, providing as arguments Triton profiles which belong to the desired data centers.
 
 Since interacting with multiple data centers requires switching between Triton profiles it's easier to perform the following steps in separate terminals. It is possible to perform all the steps for a single data center and then change profiles. Additionally, setting `COMPOSE_PROJECT_NAME` to match the profile or data center will help distinguish nodes in Triton Portal and the `triton instance ls` listing.
 
-Execute the following commands, once per data center, from the project root:
+One `_env` and one `docker-compose-<PROFILE>.yml` should be generated for each profile. Execute the following commands, once for each profile/datacenter, within `examples/triton-multi-dc`:
 
 ```
 $ eval "$(TRITON_PROFILE=<PROFILE> triton env -d)"
 
-$ export COMPOSE_FILE=examples/triton/docker-compose-<PROFILE>.yml
+# The following helps when executing docker-compose multiple times. Alternatively, pass the -f flag to each invocation of docker-compose.
+$ export COMPOSE_FILE=docker-compose-<PROFILE>.yml
 
-# the following is not strictly necessary but helps to discern between clusters
+# The following is not strictly necessary but helps to discern between clusters. Alternatively, pass the -p flag to each invocation of docker-compose.
 $ export COMPOSE_PROJECT_NAME=<PROFILE>
 
 $ docker-compose up -d
