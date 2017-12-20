@@ -5,12 +5,8 @@ help() {
     echo
     echo 'Usage ./setup-multi-datacenter.sh <triton-profile1> [<triton-profile2> [...]]'
     echo
-    echo 'Invokes ./setup repeatedly to create one _env file per datacenter per triton profile,'
-    echo 'attempting to preserve the triton profile set before this script was invoked.'
-    echo
-    echo 'Warning: The current triton profile will be changed for each invocation of ./setup.sh,'
-    echo 'this may cause unexpected behavior if other commands that read the current triton profile'
-    echo 'are executed concurrently!'
+    echo 'Invokes ./setup repeatedly to create one _env file per triton profile, each of which'
+    echo 'is presumably associated with a different datacenter.'
 }
 
 if [ "$#" -lt 1 ]; then
