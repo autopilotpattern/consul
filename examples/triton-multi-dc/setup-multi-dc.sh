@@ -5,7 +5,7 @@ help() {
     echo
     echo 'Usage ./setup-multi-datacenter.sh <triton-profile1> [<triton-profile2> [...]]'
     echo
-    echo 'Invokes ./setup repeatedly to create one _env file per triton profile, each of which'
+    echo 'Generates one _env file and docker-compose.yml file per triton profile, each of which'
     echo 'is presumably associated with a different datacenter.'
 }
 
