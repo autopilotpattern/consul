@@ -9,7 +9,6 @@ services:
   # env var) to find each other and bootstrap the cluster.
   # Note: Unless CONSUL_DEV is set, at least three instances are required for quorum.
   consul:
-    build: ../../
     image: autopilotpattern/consul:${TAG:-latest}
     restart: always
     mem_limit: 128m
