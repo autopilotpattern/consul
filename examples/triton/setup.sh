@@ -46,7 +46,6 @@ check() {
     TRITON_USER=$(triton profile get | awk -F": " '/account:/{print $2}')
     TRITON_DC=$(triton profile get | awk -F"/" '/url:/{print $3}' | awk -F'.' '{print $1}')
     TRITON_ACCOUNT=$(triton account get | awk -F": " '/id:/{print $2}')
-
     if [ ! "$docker_user" = "$TRITON_USER" ] || [ ! "$docker_dc" = "$TRITON_DC" ]; then
         echo
         tput rev  # reverse
@@ -78,7 +77,7 @@ check() {
         echo CONSUL=consul.svc.${TRITON_ACCOUNT}.${TRITON_DC}.cns.joyent.com >> _env
         echo >> _env
     else
-        echo 'Existing _env file found at _env, exiting'
+        echo 'Existing _env file found, exiting'
         exit
     fi
 }
