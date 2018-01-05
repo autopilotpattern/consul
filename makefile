@@ -81,6 +81,13 @@ test/triton:
 test/triton/dev:
 	./test/triton.sh
 
+
+# ------------------------------------------------
+# Multi-datacenter usage
+clean/triton-multi-dc:
+	rm -rf examples/triton-multi-dc/_env* examples/triton-multi-dc/docker-compose-*.yml
+
+
 ## Print environment for build debugging
 debug:
 	@echo GIT_COMMIT=$(GIT_COMMIT)

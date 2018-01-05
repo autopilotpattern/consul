@@ -22,10 +22,10 @@ RUN sed -i 's/1.9.0/1.10.0/' /usr/local/bin/triton-docker \
 
 
 # install test targets
-COPY local-compose.yml /src/local-compose.yml
-COPY docker-compose.yml /src/docker-compose.yml
+COPY examples/compose/docker-compose.yml /src/local-compose.yml
+COPY examples/triton/docker-compose.yml /src/docker-compose.yml
 
 # install test code
 COPY test/triton.sh /src/triton.sh
 COPY test/compose.sh /src/compose.sh
-COPY setup.sh /src/setup.sh
+COPY examples/triton/setup.sh /src/setup.sh

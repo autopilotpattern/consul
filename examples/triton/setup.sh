@@ -42,6 +42,7 @@ check() {
     # make sure Docker client is pointed to the same place as the Triton client
     local docker_user=$(docker info 2>&1 | awk -F": " '/SDCAccount:/{print $2}')
     local docker_dc=$(echo $DOCKER_HOST | awk -F"/" '{print $3}' | awk -F'.' '{print $1}')
+
     TRITON_USER=$(triton profile get | awk -F": " '/account:/{print $2}')
     TRITON_DC=$(triton profile get | awk -F"/" '/url:/{print $3}' | awk -F'.' '{print $1}')
     TRITON_ACCOUNT=$(triton account get | awk -F": " '/id:/{print $2}')

@@ -18,7 +18,7 @@ When run locally for testing, we don't have access to Triton CNS. The `local-com
 1. [Get a Joyent account](https://my.joyent.com/landing/signup/) and [add your SSH key](https://docs.joyent.com/public-cloud/getting-started).
 1. Install the [Docker Toolbox](https://docs.docker.com/installation/mac/) (including `docker` and `docker-compose`) on your laptop or other environment, as well as the [Joyent Triton CLI](https://www.joyent.com/blog/introducing-the-triton-command-line-tool) (`triton` replaces our old `sdc-*` CLI tools).
 
-Check that everything is configured correctly by running `./setup.sh`. This will check that your environment is setup correctly and will create an `_env` file that includes injecting an environment variable for a service name for Consul in Triton CNS. We'll use this CNS name to bootstrap the cluster.
+Check that everything is configured correctly by changing to the `examples/triton` directory and executing `./setup.sh`. This will check that your environment is setup correctly and will create an `_env` file that includes injecting an environment variable for a service name for Consul in Triton CNS. We'll use this CNS name to bootstrap the cluster.
 
 ```bash
 $ docker-compose up -d
@@ -52,6 +52,60 @@ $ docker exec -it consul_consul_3 consul info | grep num_peers
 
 ```
 
+### Run it with more than one datacenter!
+
+Within the `examples/triton-multi-dc` directory, execute `./setup-multi-dc.sh`, providing as arguments Triton profiles which belong to the desired data centers.
+
+Since interacting with multiple data centers requires switching between Triton profiles it's easier to perform the following steps in separate terminals. It is possible to perform all the steps for a single data center and then change profiles. Additionally, setting `COMPOSE_PROJECT_NAME` to match the profile or data center will help distinguish nodes in Triton Portal and the `triton instance ls` listing.
+
+One `_env` and one `docker-compose-<PROFILE>.yml` should be generated for each profile. Execute the following commands, once for each profile/datacenter, within `examples/triton-multi-dc`:
+
+```
+$ eval "$(TRITON_PROFILE=<PROFILE> triton env -d)"
+
+# The following helps when executing docker-compose multiple times. Alternatively, pass the -f flag to each invocation of docker-compose.
+$ export COMPOSE_FILE=docker-compose-<PROFILE>.yml
+
+# The following is not strictly necessary but helps to discern between clusters. Alternatively, pass the -p flag to each invocation of docker-compose.
+$ export COMPOSE_PROJECT_NAME=<PROFILE>
+
+$ docker-compose up -d
+Creating <PROFILE>_consul_1 ... done
+
+$ docker-compose scale consul=3
+```
+
+Note: the `cns.joyent.com` hostnames cannot be resolved from outside the datacenters. Change `cns.joyent.com` to `triton.zone` to access the web UI.
+
+## Environment Variables
+
+- `CONSUL_DEV`: Enable development mode, allowing a node to self-elect as a cluster leader. Consul flag: [`-dev`](https://www.consul.io/docs/agent/options.html#_dev).
+    - The following errors will occur if `CONSUL_DEV` is omitted and not enough Consul instances are deployed:
+    ```
+    [ERR] agent: failed to sync remote state: No cluster leader
+    [ERR] agent: failed to sync changes: No cluster leader
+    [ERR] agent: Coordinate update error: No cluster leader
+    ```
+- `CONSUL_DATACENTER_NAME`: Explicitly set the name of the data center in which Consul is running. Consul flag: [`-datacenter`](https://www.consul.io/docs/agent/options.html#datacenter).
+    - If this variable is specified it will be used as-is.
+    - If not specified, automatic detection of the datacenter will be attempted. See [issue #23](https://github.com/autopilotpattern/consul/issues/23) for more details.
+    - Consul's default of "dc1" will be used if none of the above apply.
+
+- `CONSUL_BIND_ADDR`: Explicitly set the corresponding Consul configuration. This value will be set to `0.0.0.0` if `CONSUL_BIND_ADDR` is not specified and `CONSUL_RETRY_JOIN_WAN` is provided. Be aware of the security implications of binding the server to a public address and consider setting up encryption or using a VPN to isolate WAN traffic from the public internet.
+- `CONSUL_SERF_LAN_BIND`: Explicitly set the corresponding Consul configuration. This value will be set to the server's private address automatically if not specified. Consul flag: [`-serf-lan-bind`](https://www.consul.io/docs/agent/options.html#serf_lan_bind).
+- `CONSUL_SERF_WAN_BIND`: Explicitly set the corresponding Consul configuration. This value will be set to the server's public address automatically if not specified. Consul flag: [`-serf-wan-bind`](https://www.consul.io/docs/agent/options.html#serf_wan_bind).
+- `CONSUL_ADVERTISE_ADDR`: Explicitly set the corresponding Consul configuration. This value will be set to the server's private address automatically if not specified. Consul flag: [`-advertise-addr`](https://www.consul.io/docs/agent/options.html#advertise_addr).
+- `CONSUL_ADVERTISE_ADDR_WAN`: Explicitly set the corresponding Consul configuration. This value will be set to the server's public address automatically if not specified. Consul flag: [`-advertise-addr-wan`](https://www.consul.io/docs/agent/options.html#advertise_addr_wan).
+
+- `CONSUL_RETRY_JOIN_WAN`: sets the remote datacenter addresses to join. Must be a valid HCL list (i.e. comma-separated quoted addresses). Consul flag: [`-retry-join-wan`](https://www.consul.io/docs/agent/options.html#retry_join_wan).
+    - The following error will occur if `CONSUL_RETRY_JOIN_WAN` is provided but improperly formatted:
+    ```
+    ==> Error parsing /etc/consul/consul.hcl: ... unexpected token while parsing list: IDENT
+    ```
+    - Gossip over the WAN requires the following ports to be accessible between data centers, make sure that adequate firewall rules have been established for the following ports (this should happen automatically when using docker-compose with Triton):
+      - `8300`: Server RPC port (TCP)
+      - `8302`: Serf WAN gossip port (TCP + UDP)
+
 ## Using this in your own composition
 
 There are two ways to run Consul and both come into play when deploying ContainerPilot, a cluster of Consul servers and individual Consul client agents.
@@ -81,20 +135,6 @@ services:
 ```
 
 In our experience, including a Consul cluster within a project's `docker-compose.yml` can help developers understand and test how a service should be discovered and registered within a wider infrastructure context.
-
-#### Environment Variables
-
-- `CONSUL_DEV`: Enable development mode, allowing a node to self-elect as a cluster leader. Consul flag: [`-dev`](https://www.consul.io/docs/agent/options.html#_dev).
-    - The following errors will occur if `CONSUL_DEV` is omitted and not enough Consul instances are deployed:
-    ```
-    [ERR] agent: failed to sync remote state: No cluster leader
-    [ERR] agent: failed to sync changes: No cluster leader
-    [ERR] agent: Coordinate update error: No cluster leader
-    ```
-- `CONSUL_DATACENTER_NAME`: Explicitly set the name of the data center in which Consul is running. Consul flag: [`-datacenter`](https://www.consul.io/docs/agent/options.html#datacenter).
-    - If this variable is specified it will be used as-is.
-    - If not specified, automatic detection of the datacenter will be attempted. See [issue #23](https://github.com/autopilotpattern/consul/issues/23) for more details.
-    - Consul's default of "dc1" will be used if none of the above apply.
 
 ### Clients
 
