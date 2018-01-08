@@ -3,10 +3,16 @@ set -e -o pipefail
 
 help() {
     echo
-    echo 'Usage ./setup.sh'
+    echo 'Usage ./setup.sh [ check | help ] [options]'
     echo
     echo 'Checks that your Triton and Docker environment is sane and configures'
     echo 'an environment file to use.'
+    echo
+    echo 'This script accepts the following arguments:'
+    echo '-h/--help: Display this help'
+    echo '-g/--gossip-path <val>: Path to a gossip key for inclusion in the environment file'
+    echo '-t/--tls-path <val>: Path to directory containing CA/Client Certificates.'
+    echo
 }
 
 # populated by `check` function whenever we're using Triton
@@ -19,6 +25,16 @@ TRITON_ACCOUNT=
 
 # Check for correct configuration and setup _env file
 check() {
+    local tls_path=
+    local gossip_path=
+
+    while true; do
+        case $1 in
+            -t|--tls-path) tls_path=$2 ; shift 2;;
+            -g|--gossip-path) gossip_path=$2 ; shift 2;;
+            *) break;;
+        esac
+    done
 
     command -v docker >/dev/null 2>&1 || {
         echo
@@ -46,6 +62,7 @@ check() {
     TRITON_USER=$(triton profile get | awk -F": " '/account:/{print $2}')
     TRITON_DC=$(triton profile get | awk -F"/" '/url:/{print $3}' | awk -F'.' '{print $1}')
     TRITON_ACCOUNT=$(triton account get | awk -F": " '/id:/{print $2}')
+
     if [ ! "$docker_user" = "$TRITON_USER" ] || [ ! "$docker_dc" = "$TRITON_DC" ]; then
         echo
         tput rev  # reverse
@@ -75,9 +92,25 @@ check() {
     if [ ! -f "_env" ]; then
         echo '# Consul bootstrap via Triton CNS' >> _env
         echo CONSUL=consul.svc.${TRITON_ACCOUNT}.${TRITON_DC}.cns.joyent.com >> _env
+
+        if [ -n "$tls_path" ]; then
+            echo "CONSUL_HTTP_SSL=true" >> _env
+            echo "CONSUL_HTTP_SSL_VERIFY=true" >> _env
+            echo "CONSUL_TLS_PATH=/ssl" >> _env
+
+            echo "TLS configuration generated. Containers will await key material before booting."
+        fi
+
+        if [ -n "$gossip_path" ]; then
+            echo "CONSUL_ENCRYPT=$(<$gossip_path)" >> _env
+            echo "Gossip encryption key loaded."
+        fi
+
         echo >> _env
+
+        echo "_env file generated. "
     else
-        echo 'Existing _env file found, exiting'
+        echo 'Existing _env file found at _env, exiting'
         exit
     fi
 }
@@ -96,7 +129,14 @@ until
             shift 1
         fi
 
-        $cmd "$@"
+        # most people don't expect to invoke a script like "./setup.sh help"
+        # so lets _help_ them out when they call us with -h/--help
+        if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
+            help
+            exit 0
+        fi
+
+        check "$@"
         if [ $? == 127 ]; then
             help
         fi

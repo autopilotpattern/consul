@@ -106,6 +106,10 @@ Note: the `cns.joyent.com` hostnames cannot be resolved from outside the datacen
       - `8300`: Server RPC port (TCP)
       - `8302`: Serf WAN gossip port (TCP + UDP)
 
+- `CONSUL_TLS_PATH`: Specifies the location of a directory which will contain the TLS key file, certificate, and root certificate. See the section on [securing Consul](#consul-encryption) for more details.
+
+- `CONSUL_ENCRYPT`: Secret key used for encrypting gossip. Consul flag: [`-encrypt`](https://www.consul.io/docs/agent/options.html#_encrypt). See the section on [securing Consul](#consul-encryption) for more details.
+
 ## Using this in your own composition
 
 There are two ways to run Consul and both come into play when deploying ContainerPilot, a cluster of Consul servers and individual Consul client agents.
@@ -184,7 +188,49 @@ Some details about how Docker containers work on Triton have specific bearing on
 
 Consul supports TLS encryption for RPC and symmetric pre-shared key encryption for its gossip protocol. Deploying these features requires managing these secrets, and a demonstration of how to do so can be found in the [Vault example](https://github.com/autopilotpattern/vault).
 
-### Testing
+### Configuration
+
+The `CONSUL_TLS_PATH` environment variable will be checked on startup and is used to indicate that TLS should be configured. If it is defined the container will await the creation of the directory specified in `CONSUL_TLS_PATH` and expect the directory to contain a CA certificate along with a datacenter-specific certificate and key. These files will be used to configure `ca_cert`, `cert_file` and `key_file` respectively in Consul, in addition to enabling both `verify_outgoing` and `verify_incoming`. The secret key used for gossip traffic can be provided directly as the environment variable `CONSUL_ENCRYPT`.
+
+The `./setup.sh` and `./setup-multi-dc.sh` scripts both accept `-t/--tls-path` and `-g/--gossip-path` parameters to set `CONSUL_TLS_PATH` and `CONSUL_ENCRYPT` environment variables respectively. Note that `--tls-path` only specifies _where_ the key material will be injected. Deployed containers will remain idle until certificates have been installed by `./setup-encryption.sh upload`
+
+### Generating certificates
+
+In order to simplify certificate generation a `Dockerfile` can be found within the `ca` directory which creates a Certificate Authority on build. Use `./setup-encryption.sh build -i <image-name>` to build the container. This same image name can then be used with `./setup-encryption.sh generate -i <image-name> -d <datacenter-name> -g <gossip-filename>` to generate certificates.
+
+### Installing certificates
+
+When `CONSUL_TLS_PATH` is specified, the `preStart` ContainerPilot job awaits the creation of the relevant certificates and key (i.e. `CONSUL_CACERT`, `CONSUL_CLIENT_CERT`, `CONSUL_CLIENT_KEY`) and uses the [ContainerPilot Control plane](https://www.joyent.com/containerpilot/docs/configuration/control-plane) from within the job to `-putenv` and `-reload` ContainerPilot itself. Without the `-putenv` calls to set the certificates and key, the `preStart` job would see `CONSUL_TLS_PATH` and attempt to restart ContainerPilot indefinitely.
+
+Certificates and the private key can be installed in running containers with `./setup-encryption.sh upload -d <datacenter-name> -t <CONSUL_TLS_PATH>`. Note that `-d` is only used to select the directory containing the key material, you must still run `eval "$(triton env -d)"` with the relevant datacenter's profile in order to target the correct docker endpoint.
+
+The `upload` command will assume the default `docker-compose` file (`./docker-compose.yml`) and project name (the current working directory), reading `COMPOSE_FILE` and `COMPOSE_PROJECT_NAME` if they are defined, but can be overriden with `-f` and `-p` in the same way as `docker-compose` itself.
+
+### Encrypting gossip
+
+The `CONSUL_ENCRYPT` parameter can be passed to encrypt gossip traffic. Use `./setup-encryption.sh generate -g <filename>` to generate a file in the `secrets` directory with the provided name. For local deployments, simply copy the contents of the generated file as an environment variable in `examples/compose/docker-compose.yml`. For Triton deployments, the setup scripts accept a `-g` parameter to specify a relative path to a gossip file (e.g. `examples/triton/setup.sh -g ../../secrets/gossip`) and will inject the contents of the gossip key file as `CONSUL_ENCRYPT` in the relevant `_env` file.
+
+### How do I know if it's working?
+
+Assuming you've spun up `examples/compose/docker-compose.yml` after generating a certificate for the "dc1" datacenter (which would imply the `secrets/dc1` directory was generated) then you'll notice commands fail with odd HTTP responses unless the correct certificates and key are supplied:
+
+```
+$ docker-compose exec consul consul info -client-cert=/ssl/dc1.crt -client-key=/ssl/dc1.key -ca-file=/ssl/ca.crt
+Error querying agent: Get http://127.0.0.1:8500/v1/agent/self: net/http: HTTP/1.x transport connection broken: malformed HTTP response "\x15\x03\x01\x00\x02\x02"
+
+$ docker-compose exec consul consul info -client-cert=/ssl/dc1.crt -client-key=/ssl/dc1.key -http-addr=https://consul:8500
+Error querying agent: Get https://consul:8500/v1/agent/self: x509: certificate signed by unknown authority
+
+$ docker-compose exec consul consul info -client-cert=/ssl/dc1.crt -ca-file=/ssl/ca.crt -http-addr=https://consul:8500
+Error querying agent: Get https://consul:8500/v1/agent/self: remote error: tls: bad certificate
+
+# with everything in place
+$ docker-compose exec consul consul members -client-cert=/ssl/dc1.crt -client-key=/ssl/dc1.key -ca-file=/ssl/ca.crt -http-addr=https://consul:8500
+Node          Address          Status  Type    Build  Protocol  DC   Segment
+01e297f34346  172.23.0.2:8301  alive   server  1.0.0  2         dc1  <all>
+```
+
+## Testing
 
 The `tests/` directory includes integration tests for both the Triton and Compose example stacks described above. Build the test runner by making sure you've pulled down the submodule with `git submodule update --init` and then `make build/tester`.
 

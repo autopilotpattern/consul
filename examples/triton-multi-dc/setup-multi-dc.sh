@@ -3,16 +3,35 @@ set -e -o pipefail
 
 help() {
     echo
-    echo 'Usage ./setup-multi-datacenter.sh <triton-profile1> [<triton-profile2> [...]]'
+    echo 'Usage ./setup-multi-datacenter.sh [options] <triton-profile1> [<triton-profile2> [...]]'
     echo
     echo 'Generates one _env file and docker-compose.yml file per triton profile, each of which'
     echo 'is presumably associated with a different datacenter.'
+    echo
+    echo 'This script accepts the following arguments:'
+    echo '-h/--help: Display this help'
+    echo '-g/--gossip-path <val>: Path to a gossip key for inclusion in the environment file'
+    echo '-t/--tls-path <val>: Path to configure for TLS certificates and key for later installation'
+    echo '  by setup-encryption.sh. NOTE: This is not a local path, this is CONSUL_TLS_PATH'
+    echo
 }
 
-if [ "$#" -lt 1 ]; then
+if [ "$#" -lt 1 ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
   help
-  exit 1
+  exit 0
 fi
+
+tls_path=
+gossip_path=
+
+# collect options for encryption
+while true; do
+    case $1 in
+        -t|--tls-path) tls_path=$2 ; shift 2;;
+        -g|--gossip-path) gossip_path=$2 ; shift 2;;
+        *) break;;
+    esac
+done
 
 # ---------------------------------------------------
 # Top-level commands
@@ -80,9 +99,23 @@ generate_env() {
     if [ ! -f "$output_file" ]; then
         echo '# Consul bootstrap via Triton CNS' >> $output_file
         echo CONSUL=consul.svc.${triton_account}.${triton_dc}.cns.joyent.com >> $output_file
+
+        if [ -n "$tls_path" ]; then
+            echo "CONSUL_HTTP_SSL=true" >> $output_file
+            echo "CONSUL_HTTP_SSL_VERIFY=true" >> $output_file
+            echo "CONSUL_TLS_PATH=/ssl" >> $output_file
+
+            echo "TLS configuration generated. Containers will await key material before booting."
+        fi
+
+        if [ -n "$gossip_path" ]; then
+            echo "CONSUL_ENCRYPT=$(<$gossip_path)" >> $output_file
+            echo "Gossip encryption key loaded."
+        fi
+
         echo >> $output_file
     else
-        echo "Existing _env file found at $1, exiting"
+        echo "Existing _env file found at $output_file, exiting"
         exit
     fi
 }
