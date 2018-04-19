@@ -38,6 +38,22 @@ check() {
         echo 'See https://docs.joyent.com/public-cloud/api-access/triton-cli'
         exit 1
     }
+
+    TRITON_USER=$(triton profile get 2>/dev/null | awk -F": " '/account:/{print $2}')
+    TRITON_DC=$(triton profile get 2>/dev/null | awk -F"/" '/url:/{print $3}' | awk -F'.' '{print $1}')
+    TRITON_ACCOUNT=$(triton account get 2>/dev/null | awk -F": " '/id:/{print $2}')
+    if [ -z "$TRITON_USER" ] || [ -z "$TRITON_DC" ] || [ -z "$TRITON_ACCOUNT" ]; then
+        echo
+        tput rev  # reverse
+        tput bold # bold
+        echo 'Error! A Triton profile does not appear to be configured.'
+        tput sgr0 # clear
+        echo
+        echo 'See https://docs.joyent.com/public-cloud/api-access/triton-cli'
+        echo
+        exit 1
+    fi
+
     command -v triton-docker >/dev/null 2>&1 || {
         echo
         tput rev  # reverse
@@ -47,6 +63,20 @@ check() {
         echo 'See https://docs.joyent.com/public-cloud/api-access/docker'
         exit 1
     }
+
+    local triton_docker_configured=$(triton-docker info 2>/dev/null | awk -F": " '/Operating System:/{print $2}')
+    if [ ! "SmartDataCenter" == "$triton_docker_configured" ]; then
+        echo
+        tput rev  # reverse
+        tput bold # bold
+        echo 'Error! The current Triton profile does not appear to be configured for use with triton-docker.'
+        tput sgr0 # clear
+        echo
+        echo 'Consider running:'
+        echo '  triton profile docker-setup'
+        echo
+        exit 1
+    fi
 
     local triton_cns_enabled=$(triton account get | awk -F": " '/cns/{print $2}')
     if [ ! "true" == "$triton_cns_enabled" ]; then
