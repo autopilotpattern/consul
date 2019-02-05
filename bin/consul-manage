@@ -12,10 +12,14 @@ preStart() {
         sed -i "s/CONSUL_DATACENTER_NAME/${CONSUL_DATACENTER_NAME}/" /etc/consul/consul.hcl
     elif [ -f "/native/usr/sbin/mdata-get" ]; then
         DETECTED_DATACENTER_NAME=$(/native/usr/sbin/mdata-get sdc:datacenter_name)
+        # re-export so it can be used later in this script
+        export CONSUL_DATACENTER_NAME=$DETECTED_DATACENTER_NAME
         _log "Updating consul datacenter name (detected: '${DETECTED_DATACENTER_NAME}')"
         sed -i "s/CONSUL_DATACENTER_NAME/${DETECTED_DATACENTER_NAME}/" /etc/consul/consul.hcl
     else
         _log "Updating consul datacenter name (default: 'dc1')"
+        # re-export so it can be used later in this script
+        export CONSUL_DATACENTER_NAME=dc1
         sed -i "s/CONSUL_DATACENTER_NAME/dc1/" /etc/consul/consul.hcl
     fi
 
@@ -58,6 +62,124 @@ preStart() {
 
     # advertise_addr_wan tells nodes their public address for WAN communication
     updateConfigFromEnvOrDefault 'advertise_addr_wan'   'CONSUL_ADVERTISE_ADDR_WAN' "$IP_ADDRESS"
+
+    # there's no consul env for this
+    if [ -n "$CONSUL_ENCRYPT" ]; then
+        sed -i '/^encrypt =/d' /etc/consul/consul.hcl
+        _log "Updating consul translate_wan_addrs field"
+        echo "encrypt = \"$CONSUL_ENCRYPT\"" >> /etc/consul/consul.hcl
+    else
+        _log "Skipping gossip encryption configuration"
+    fi
+
+    # this block looks for the files used for enabling TLS support in CONSUL_TLS_PATH
+    # and populates the configs in Consul, but not containerpilot
+    if [ -n "$CONSUL_TLS_PATH" ] && [ -z "$CONSUL_CACERT$CONSUL_CLIENT_CERT$CONSUL_CLIENT_KEY"]; then
+
+        # notice we are intentionally not exporting these as envs
+        # nor are we using containerpilot -putenv
+        local consul_cacert="$CONSUL_TLS_PATH/ca.crt"
+        local consul_client_cert="$CONSUL_TLS_PATH/$CONSUL_DATACENTER_NAME.crt"
+        local consul_client_key="$CONSUL_TLS_PATH/$CONSUL_DATACENTER_NAME.key"
+
+        until find "$consul_cacert" "$consul_client_cert" "$consul_client_key" &>/dev/null
+        do
+            sleep 5
+            _log "Still waiting for TLS key material at: CONSUL_CACERT=$consul_cacert CONSUL_CLIENT_CERT=$consul_client_cert CONSUL_CLIENT_KEY=$consul_client_key"
+        done
+
+        if [ -f "$consul_cacert" ] \
+            && [ -f "$consul_client_cert" ] \
+            && [ -f "$consul_client_key" ]; then
+
+            echo "TLS files found. Updating consul configs: ca_file, cert_file, key_file, verify_outgoing, verify_incoming"
+
+            # these need to be set in the config since containerpilot looks at the same
+            # environment variables. containerpilot will crash if it's booting and these are missing
+
+            sed -i '/^ca_file/d' /etc/consul/consul.hcl
+            echo "ca_file = \"$(realpath $consul_cacert)\"" >> /etc/consul/consul.hcl
+            # /usr/local/bin/containerpilot -putenv "CONSUL_CACERT=$CONSUL_CACERT"
+
+            sed -i '/^cert_file/d' /etc/consul/consul.hcl
+            echo "cert_file = \"$(realpath $consul_client_cert)\"" >> /etc/consul/consul.hcl
+            # /usr/local/bin/containerpilot -putenv "CONSUL_CLIENT_CERT=$CONSUL_CLIENT_CERT"
+
+            sed -i '/^key_file/d' /etc/consul/consul.hcl
+            echo "key_file = \"$(realpath $consul_client_key)\"" >> /etc/consul/consul.hcl
+            # /usr/local/bin/containerpilot -putenv "CONSUL_CLIENT_KEY=$CONSUL_CLIENT_KEY"
+
+            # /usr/local/bin/containerpilot -putenv "CONSUL_HTTP_SSL=true"
+
+            # maybe just listen unencrypted on a private address?
+
+            sed -i '/^verify_outgoing =/d' /etc/consul/consul.hcl
+            echo "verify_outgoing = true" >> /etc/consul/consul.hcl
+
+            sed -i '/^verify_incoming =/d' /etc/consul/consul.hcl
+            echo "verify_incoming = true" >> /etc/consul/consul.hcl
+
+            sed -i '/^verify_incoming_rpc =/d' /etc/consul/consul.hcl
+            echo "verify_incoming_rpc = true" >> /etc/consul/consul.hcl
+
+            sed -i '/^verify_incoming_https =/d' /etc/consul/consul.hcl
+            echo "verify_incoming_https = true" >> /etc/consul/consul.hcl
+
+            # docs just before https://www.consul.io/docs/agent/options.html#configuration-key-reference say:
+
+            # Consul will not enable TLS for the HTTP API unless the
+            # https port has been assigned a port number > 0.
+
+            sed -i 's/^  HTTP_PORT/  http = 8500/' /etc/consul/consul.hcl
+            sed -i 's/^  HTTPS_PORT/  https = 8501/' /etc/consul/consul.hcl
+
+            # if TLS is being configured, we probably want to lock down HTTP to only localhost, or
+            # a private address. By default, (the empty string) we will listen on a private address,
+            # unless the user has requested otherwise (either with something falsy, or with "localhost"
+            #
+            # Leaving this unspecified and attempting to visit the web UI at the 8500 address (when
+            # encryption is set up correctly) will lead to  `ERR_EMPTY_RESPONSE` or `curl: (52) Empty reply from server`
+            case "$CONSUL_TLS_PRIVATE_HTTP" in 
+                0 | f | n | false | no)
+                    sed -i 's/^  HTTP_ADDR/  http = "{{ GetPublicIP }}"/' /etc/consul/consul.hcl ;;
+                1 | t | y | true | yes | '')
+                    sed -i 's/^  HTTP_ADDR/  http = "{{ GetPrivateIP }}"/' /etc/consul/consul.hcl ;;
+                localhost)
+                    sed -i 's/^  HTTP_ADDR/  http = "127.0.0.1"/' /etc/consul/consul.hcl ;;
+            esac
+
+            sed -i 's/^  HTTPS_ADDR/  https = "{{ GetPublicIP }}"/' /etc/consul/consul.hcl
+
+            ## we should'nt need to do this if we're not giving the certs to ContainerPilot
+            # echo "Attempting to reload"
+
+            # /usr/local/bin/containerpilot -reload
+        else
+            # TODO: not sure what do to here
+            echo "TLS files missing from TLS directory. Exiting!"
+            exit 1
+        fi
+    else
+        _log "Skipping RPC server TLS configuration"
+
+        # remove HTTPS placeholder line and set http address to 8500
+        sed -i '/^  HTTPS_PORT/d' /etc/consul/consul.hcl
+        sed -i 's/^  HTTP_PORT/  http = 8500/' /etc/consul/consul.hcl
+    fi
+}
+
+preStop() {
+    echo " ~~~ preStop ~~~"
+
+    if consul info &>/dev/null; then
+        consul leave
+    else
+        echo "We're still bootstrapping, probably."
+    fi
+}
+
+postStop() {
+    echo " ~~~ postStop ~~~"
 }
 
 #
@@ -72,16 +194,47 @@ preStart() {
 # we've got the whole cluster together.
 #
 health() {
-    if [ $(consul info | awk '/num_peers/{print$3}') == 0 ]; then
+    local consul_args=
+
+    if [ -z "${CONSUL}" ]; then
+        echo "CONSUL env was not defined."
+        exit 1
+    fi
+
+    ## TODO: read either:
+    # - CONSUL_TLS_PATH
+    # or
+    # - CONSUL_CACERT
+    # - CONSUL_CLIENT_CERT
+    # - CONSUL_CLIENT_KEY
+    # to prepare consul_args
+    #
+    # if [ -n "$CONSUL_TLS_PATH" ]; then
+    #     consul_args="$consul_args -ca-file=$CONSUL_CACERT"
+    #     consul_args="$consul_args -client-cert=$CONSUL_CLIENT_CERT"
+    #     consul_args="$consul_args -client-key=$CONSUL_CLIENT_KEY"
+    #
+    #     if [[ $CONSUL != "https"* ]]; then
+    #         consul_args="$consul_args -http-addr=https://$CONSUL:8500"
+    #     fi
+    # fi
+
+    local info_output=$(consul info $consul_args)
+
+    if [ -z "$info_output" ]; then
+        _log "Healtcheck failed while collecting info."
+        exit 1
+    fi
+
+    if [ $(echo $info_output | awk '/num_peers/{print$3}') == 0 ]; then
         _log "No peers in raft"
-        consul join ${CONSUL}
+        consul join $consul_args ${CONSUL}
     fi
 }
 
 _log() {
     echo "    $(date -u '+%Y-%m-%d %H:%M:%S') containerpilot: $@"
 }
-
 
 #
 # Defines $1 in the consul configuration as either an env or a default.

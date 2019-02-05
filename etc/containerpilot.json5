@@ -30,7 +30,7 @@
     },
     {
       name: "preStop",
-      exec: ["consul", "leave"],
+      exec: ["/usr/local/bin/consul-manage", "preStop"],
       when: {
         source: "consul",
         once: "stopping"

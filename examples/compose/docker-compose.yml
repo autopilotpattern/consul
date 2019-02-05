@@ -14,8 +14,15 @@ services:
     mem_limit: 128m
     ports:
         - 8500
+        - 8501
     environment:
       - CONSUL=consul
       - CONSUL_DATACENTER_NAME=dc1
+      # The following variables can be used for HTTPS, RPC and gossip encryption
+      - CONSUL_TLS_PATH=
+      - CONSUL_ENCRYPT=
+      # see etc/consul-manage
+      - CONSUL_TLS_PRIVATE_HTTP=
+
     command: >
       /usr/local/bin/containerpilot
