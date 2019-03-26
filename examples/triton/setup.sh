@@ -35,28 +35,46 @@ check() {
         tput bold # bold
         echo 'Error! Joyent Triton CLI is required, but does not appear to be installed.'
         tput sgr0 # clear
-        echo 'See https://www.joyent.com/blog/introducing-the-triton-command-line-tool'
+        echo 'See https://docs.joyent.com/public-cloud/api-access/triton-cli'
         exit 1
     }
 
-    # make sure Docker client is pointed to the same place as the Triton client
-    local docker_user=$(docker info 2>&1 | awk -F": " '/SDCAccount:/{print $2}')
-    local docker_dc=$(echo $DOCKER_HOST | awk -F"/" '{print $3}' | awk -F'.' '{print $1}')
-
-    TRITON_USER=$(triton profile get | awk -F": " '/account:/{print $2}')
-    TRITON_DC=$(triton profile get | awk -F"/" '/url:/{print $3}' | awk -F'.' '{print $1}')
-    TRITON_ACCOUNT=$(triton account get | awk -F": " '/id:/{print $2}')
-    if [ ! "$docker_user" = "$TRITON_USER" ] || [ ! "$docker_dc" = "$TRITON_DC" ]; then
+    TRITON_USER=$(triton profile get 2>/dev/null | awk -F": " '/account:/{print $2}')
+    TRITON_DC=$(triton profile get 2>/dev/null | awk -F"/" '/url:/{print $3}' | awk -F'.' '{print $1}')
+    TRITON_ACCOUNT=$(triton account get 2>/dev/null | awk -F": " '/id:/{print $2}')
+    if [ -z "$TRITON_USER" ] || [ -z "$TRITON_DC" ] || [ -z "$TRITON_ACCOUNT" ]; then
         echo
         tput rev  # reverse
         tput bold # bold
-        echo 'Error! The Triton CLI configuration does not match the Docker CLI configuration.'
+        echo 'Error! A Triton profile does not appear to be configured.'
         tput sgr0 # clear
         echo
-        echo "Docker user: ${docker_user}"
-        echo "Triton user: ${TRITON_USER}"
-        echo "Docker data center: ${docker_dc}"
-        echo "Triton data center: ${TRITON_DC}"
+        echo 'See https://docs.joyent.com/public-cloud/api-access/triton-cli'
+        echo
+        exit 1
+    fi
+
+    command -v triton-docker >/dev/null 2>&1 || {
+        echo
+        tput rev  # reverse
+        tput bold # bold
+        echo 'Error! Joyent Triton CLI is required, but does not appear to be installed.'
+        tput sgr0 # clear
+        echo 'See https://docs.joyent.com/public-cloud/api-access/docker'
+        exit 1
+    }
+
+    local triton_docker_configured=$(triton-docker info 2>/dev/null | awk -F": " '/Operating System:/{print $2}')
+    if [ ! "SmartDataCenter" == "$triton_docker_configured" ]; then
+        echo
+        tput rev  # reverse
+        tput bold # bold
+        echo 'Error! The current Triton profile does not appear to be configured for use with triton-docker.'
+        tput sgr0 # clear
+        echo
+        echo 'Consider running:'
+        echo '  triton profile docker-setup'
+        echo
         exit 1
     fi
 
